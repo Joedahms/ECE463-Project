@@ -17,5 +17,10 @@ int main(int argc, char* argv[]) {
 
 	getaddrinfo("some ip address or url?", "3940", &hints, &clientAddressInfo);
 
+	int socketDescriptor;
+	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
+
+	connect(socketDescriptor, clientAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
+
 	return 0;
 }
