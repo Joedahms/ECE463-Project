@@ -5,7 +5,7 @@
 
 #include "server.h"
 
-int main(void) {
+int main(int argc, char* argv[]) {
 
 	int status;
 	struct addrinfo hints;
@@ -17,6 +17,8 @@ int main(void) {
 	hints.ai_flags = AI_PASSIVE;		// Socket address suitable for binding a socket that will accept connections (if node is null)
 	
 	getaddrinfo(NULL, "3940", &hints, &serverAddressInfo);
+
+		
 	
 	freeaddrinfo(serverAddressInfo);
 
