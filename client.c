@@ -8,6 +8,20 @@
 #include "client.h"
 
 int main(int argc, char* argv[]) {
+	uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
+
+	switch (argc) {					// Check how many command line arguments are passed
+		case 1:
+			printf("%s\n", "Running client in normal mode");
+			break;
+		case 2:
+			if (strcmp(argv[1], "-d") == 0) {
+				debugFlag = 1;
+				printf("%s\n", "Running client in debug mode");
+			}
+			break;
+		default:
+	}
 	
 	int status;
 	struct addrinfo hints;
@@ -24,7 +38,7 @@ int main(int argc, char* argv[]) {
 
 	connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
 
-	char* outgoingData = "Testing Testing Testing";
+	char outgoingData[] = "TestingTestingTesting";
 	send(socketDescriptor, outgoingData, strlen(outgoingData), 0);
 
 	return 0;
