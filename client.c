@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "client.h"
 
@@ -20,7 +21,10 @@ int main(int argc, char* argv[]) {
 	int socketDescriptor;
 	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
 
-	connect(socketDescriptor, clientAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
+	connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
+
+	char* outgoingData = "Testing Testing Testing";
+	send(socketDescriptor, outgoingData, strlen(outgoingData), 0);
 
 	return 0;
 }
