@@ -39,6 +39,11 @@ int main(int argc, char* argv[]) {
 
 	char incomingBuffer[1000];
 	recv(incomingSocketDescriptor, incomingBuffer, strlen(incomingBuffer), 0);
+
+	int i;
+	for (i = 0; i < 1000; i++) {
+		printf("%c", incomingBuffer[i]);
+	}
 	
 	freeaddrinfo(serverAddressInfo);
 

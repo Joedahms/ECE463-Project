@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -16,7 +17,7 @@ int main(int argc, char* argv[]) {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = 0;
 
-	getaddrinfo("some ip address or url?", "3940", &hints, &clientAddressInfo);
+	getaddrinfo(NULL, "3940", &hints, &clientAddressInfo);
 
 	int socketDescriptor;
 	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
