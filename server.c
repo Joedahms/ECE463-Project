@@ -52,12 +52,20 @@ int main(int argc, char* argv[]) {
 	socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
 	incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
 
-	char incomingBuffer[1000];
-	recv(incomingSocketDescriptor, incomingBuffer, strlen(incomingBuffer), 0);
+	char incomingMessageBuffer[100];
+	int sizeOfIncomingMessageBuffer = sizeof(incomingMessageBuffer);
+	if (debugFlag) {
+		printf("Size of incoming message buffer: %d\n", sizeOfIncomingMessageBuffer);
+	}
+	int bytesReceived = 0;
+	bytesReceived = recv(incomingSocketDescriptor, incomingMessageBuffer, sizeOfIncomingMessageBuffer, 0);
+	if (debugFlag) {
+		printf("Bytes Received: %d\n", bytesReceived);
+	}
 
 	int i;
 	for (i = 0; i < 1000; i++) {
-		printf("%c", incomingBuffer[i]);
+		printf("%c", incomingMessageBuffer[i]);
 	}
 	
 	freeaddrinfo(serverAddressInfo);
