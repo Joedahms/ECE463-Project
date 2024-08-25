@@ -56,7 +56,7 @@ int main(int argc, char* argv[]) {
 }
 
 void sendFile(const char* fileName, int socketDescriptor) {
-	sendBytes(socketDescriptor, fileName, sizeof(fileName), 0);
+	sendBytes(socketDescriptor, fileName, strlen(fileName), 0);
 
 	int fileDescriptor;
 	fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
