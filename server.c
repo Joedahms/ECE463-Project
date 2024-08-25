@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,12 +15,12 @@ int main(int argc, char* argv[]) {
 
 	switch (argc) {					// Check how many command line arguments are passed
 		case 1:
-			printf("%s\n", "Running server in normal mode");
+			printf("Running server in normal mode\n");
 			break;
 		case 2:
 			if (strcmp(argv[1], "-d") == 0) {
 				debugFlag = 1;
-				printf("%s\n", "Running server in debug mode");
+				printf("Running server in debug mode\n");
 			}
 			break;
 		default:
@@ -52,6 +54,7 @@ int main(int argc, char* argv[]) {
 	socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
 	incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
 
+	// Recieve incoming message
 	char incomingMessageBuffer[100];
 	int sizeOfIncomingMessageBuffer = sizeof(incomingMessageBuffer);
 	if (debugFlag) {
@@ -63,10 +66,15 @@ int main(int argc, char* argv[]) {
 		printf("Bytes Received: %d\n", bytesReceived);
 	}
 
+	// Print out incoming message
 	int i;
-	for (i = 0; i < 1000; i++) {
+	printf("Incoming Message: \n");
+	for (i = 0; i < sizeOfIncomingMessageBuffer; i++) {
 		printf("%c", incomingMessageBuffer[i]);
 	}
+	printf("\n");
+
+	open("test.txt", O_CREAT, O_RDWR);
 	
 	freeaddrinfo(serverAddressInfo);
 

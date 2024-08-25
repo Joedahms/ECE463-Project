@@ -1,11 +1,16 @@
-#include <stdio.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
+#include <stdio.h>
 #include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "client.h"
+
+void printFileInformation(const char*, struct stat);
 
 int main(int argc, char* argv[]) {
 	uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
@@ -39,7 +44,35 @@ int main(int argc, char* argv[]) {
 	connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
 
 	char outgoingData[] = "TestingTestingTesting";
-	send(socketDescriptor, outgoingData, strlen(outgoingData), 0);
+	int bytesSent = 0;
+	bytesSent = send(socketDescriptor, outgoingData, strlen(outgoingData), 0);
+	if (bytesSent != -1) {
+		if (debugFlag) {
+			printf("Bytes sent: %d\n", bytesSent);
+		}	
+	}
+	else {
+		printf("Error: send failed");
+	}
+
+	int fileDescriptor;
+	fileDescriptor = open("test.txt", O_CREAT, O_RDWR);
+
+	struct stat fileInformation;
+	stat("test.txt", &fileInformation);
+
+	int i;
+	unsigned long int fileSize = fileInformation.st_size;
+	char* fileBuffer = malloc(1000);
+	read(fileDescriptor, fileBuffer, fileSize);
+	for (i = 0; i < fileSize; i++) {
+		printf("%c", fileBuffer[i]);
+	}
 
 	return 0;
+}
+
+void printFileInformation(const char* fileName, struct stat fileInformation) {
+	printf("Information about %s:\n", fileName);
+	printf("Total size, in bytes: %ld\n", fileInformation.st_size);			
 }
