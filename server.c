@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 	incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
 
 	// Recieve incoming message
-	char incomingMessageBuffer[100];
+	char incomingMessageBuffer[100000];
 	int sizeOfIncomingMessageBuffer = sizeof(incomingMessageBuffer);
 	if (debugFlag) {
 		printf("Size of incoming message buffer: %d\n", sizeOfIncomingMessageBuffer);
@@ -69,13 +69,11 @@ int main(int argc, char* argv[]) {
 	// Print out incoming message
 	int i;
 	printf("Incoming Message: \n");
-	for (i = 0; i < sizeOfIncomingMessageBuffer; i++) {
+	for (i = 0; i < bytesReceived; i++) {
 		printf("%c", incomingMessageBuffer[i]);
 	}
 	printf("\n");
 
-	open("test.txt", O_CREAT, O_RDWR);
-	
 	freeaddrinfo(serverAddressInfo);
 
 	return 0;

@@ -14,15 +14,19 @@ void printFileInformation(const char*, struct stat);
 
 int main(int argc, char* argv[]) {
 	uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
+	char* fileName = malloc(20);
 
 	switch (argc) {					// Check how many command line arguments are passed
 		case 1:
 			printf("%s\n", "Running client in normal mode");
 			break;
 		case 2:
-			if (strcmp(argv[1], "-d") == 0) {
+			if (strcmp(argv[1], "-d") == 0) {	// Check if debug flag
 				debugFlag = 1;
 				printf("%s\n", "Running client in debug mode");
+			}
+			else {					// Filename
+				strcpy(fileName, argv[1]);
 			}
 			break;
 		default:
@@ -43,9 +47,24 @@ int main(int argc, char* argv[]) {
 
 	connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
 
-	char outgoingData[] = "TestingTestingTesting";
+	int fileDescriptor;
+	fileDescriptor = open(fileName, O_CREAT, O_RDWR);
+
+	struct stat fileInformation;
+	stat(fileName, &fileInformation);
+
+	int i;
+	unsigned long int fileSize = fileInformation.st_size;
+	char* fileBuffer = malloc(100000);
+	read(fileDescriptor, fileBuffer, fileSize);
+	for (i = 0; i < fileSize; i++) {
+		printf("%c", fileBuffer[i]);
+	}
+
+	//char outgoingData[] = "TestingTestingTesting";
 	int bytesSent = 0;
-	bytesSent = send(socketDescriptor, outgoingData, strlen(outgoingData), 0);
+	//bytesSent = send(socketDescriptor, outgoingData, strlen(outgoingData), 0);
+	bytesSent = send(socketDescriptor, fileBuffer, fileSize, 0);
 	if (bytesSent != -1) {
 		if (debugFlag) {
 			printf("Bytes sent: %d\n", bytesSent);
@@ -53,20 +72,6 @@ int main(int argc, char* argv[]) {
 	}
 	else {
 		printf("Error: send failed");
-	}
-
-	int fileDescriptor;
-	fileDescriptor = open("test.txt", O_CREAT, O_RDWR);
-
-	struct stat fileInformation;
-	stat("test.txt", &fileInformation);
-
-	int i;
-	unsigned long int fileSize = fileInformation.st_size;
-	char* fileBuffer = malloc(1000);
-	read(fileDescriptor, fileBuffer, fileSize);
-	for (i = 0; i < fileSize; i++) {
-		printf("%c", fileBuffer[i]);
 	}
 
 	return 0;
