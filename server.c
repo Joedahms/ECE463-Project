@@ -9,9 +9,12 @@
 
 #include "server.h"
 
+uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
+
+void receiveFile(int);
+
 int main(int argc, char* argv[]) {
 
-	uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
 
 	switch (argc) {					// Check how many command line arguments are passed
 		case 1:
@@ -49,6 +52,14 @@ int main(int argc, char* argv[]) {
 	
 	listen(socketDescriptor, 10);		// Limit queued connections to 10
 
+	receiveFile(socketDescriptor);
+	
+	freeaddrinfo(serverAddressInfo);
+
+	return 0;
+}
+
+void receiveFile(int socketDescriptor) {
 	struct sockaddr incomingAddress;
 	int incomingSocketDescriptor;
 	socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
@@ -73,8 +84,4 @@ int main(int argc, char* argv[]) {
 		printf("%c", incomingMessageBuffer[i]);
 	}
 	printf("\n");
-
-	freeaddrinfo(serverAddressInfo);
-
-	return 0;
 }

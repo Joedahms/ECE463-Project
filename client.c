@@ -10,10 +10,12 @@
 
 #include "client.h"
 
+uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
+
+void sendFile(const char*, int);
 void printFileInformation(const char*, struct stat);
 
 int main(int argc, char* argv[]) {
-	uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
 	char* fileName = malloc(20);
 
 	switch (argc) {					// Check how many command line arguments are passed
@@ -47,25 +49,29 @@ int main(int argc, char* argv[]) {
 
 	connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
 
+	sendFile(fileName, socketDescriptor);
+	
+	return 0;
+}
+
+void sendFile(const char* fileName, int socketDescriptor) {
 	int fileDescriptor;
-	fileDescriptor = open(fileName, O_CREAT, O_RDWR);
+	fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
 
 	struct stat fileInformation;
 	stat(fileName, &fileInformation);
-
-	int i;
 	unsigned long int fileSize = fileInformation.st_size;
+
 	char* fileBuffer = malloc(100000);
 	read(fileDescriptor, fileBuffer, fileSize);
+	int i;
 	for (i = 0; i < fileSize; i++) {
 		printf("%c", fileBuffer[i]);
 	}
 
-	//char outgoingData[] = "TestingTestingTesting";
 	int bytesSent = 0;
-	//bytesSent = send(socketDescriptor, outgoingData, strlen(outgoingData), 0);
 	bytesSent = send(socketDescriptor, fileBuffer, fileSize, 0);
-	if (bytesSent != -1) {
+	if (bytesSent != -1) {						// No error
 		if (debugFlag) {
 			printf("Bytes sent: %d\n", bytesSent);
 		}	
@@ -74,7 +80,6 @@ int main(int argc, char* argv[]) {
 		printf("Error: send failed");
 	}
 
-	return 0;
 }
 
 void printFileInformation(const char* fileName, struct stat fileInformation) {
