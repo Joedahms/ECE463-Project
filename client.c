@@ -13,6 +13,7 @@
 uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
 
 void sendFile(const char*, int);
+void sendBytes(int, const char*, unsigned long int, int);
 void printFileInformation(const char*, struct stat);
 
 int main(int argc, char* argv[]) {
@@ -69,6 +70,10 @@ void sendFile(const char* fileName, int socketDescriptor) {
 		printf("%c", fileBuffer[i]);
 	}
 
+	sendBytes(socketDescriptor, fileBuffer, fileSize, 0);
+}
+
+void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int fileSize, int flags) {
 	int bytesSent = 0;
 	bytesSent = send(socketDescriptor, fileBuffer, fileSize, 0);
 	if (bytesSent != -1) {						// No error
@@ -79,7 +84,6 @@ void sendFile(const char* fileName, int socketDescriptor) {
 	else {
 		printf("Error: send failed");
 	}
-
 }
 
 void printFileInformation(const char* fileName, struct stat fileInformation) {
