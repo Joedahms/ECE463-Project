@@ -56,6 +56,8 @@ int main(int argc, char* argv[]) {
 }
 
 void sendFile(const char* fileName, int socketDescriptor) {
+	sendBytes(socketDescriptor, fileName, sizeof(fileName), 0);
+
 	int fileDescriptor;
 	fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
 
@@ -65,15 +67,18 @@ void sendFile(const char* fileName, int socketDescriptor) {
 
 	char* fileBuffer = malloc(100000);
 	read(fileDescriptor, fileBuffer, fileSize);
-	int i;
-	for (i = 0; i < fileSize; i++) {
-		printf("%c", fileBuffer[i]);
-	}
-
+	
 	sendBytes(socketDescriptor, fileBuffer, fileSize, 0);
 }
 
 void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int fileSize, int flags) {
+	printf("Sending message: \n");
+	int i;
+	for (i = 0; i < fileSize; i++) {
+		printf("%c", fileBuffer[i]);
+	}
+	printf("\n");
+
 	int bytesSent = 0;
 	bytesSent = send(socketDescriptor, fileBuffer, fileSize, 0);
 	if (bytesSent != -1) {						// No error
@@ -82,7 +87,7 @@ void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int f
 		}	
 	}
 	else {
-		printf("Error: send failed");
+		printf("Error: send failed\n");
 	}
 }
 
