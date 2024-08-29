@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
 
 	int socketDescriptor;
 	socketDescriptor = socket(serverAddressInfo->ai_family, serverAddressInfo->ai_socktype, 0);
+	fcntl(socketDescriptor, F_SETFD, O_NONBLOCK);
 
 	bind(socketDescriptor, serverAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
 	
@@ -57,9 +58,11 @@ int main(int argc, char* argv[]) {
 	struct sockaddr incomingAddress;
 	int incomingSocketDescriptor;
 	socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
-	incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
 
-	receiveFile(incomingSocketDescriptor);
+	while (1) {
+		incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
+		receiveFile(incomingSocketDescriptor);
+	}
 	
 	freeaddrinfo(serverAddressInfo);
 

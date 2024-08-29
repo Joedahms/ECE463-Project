@@ -56,6 +56,7 @@ int main(int argc, char* argv[]) {
 }
 
 void sendFile(const char* fileName, int socketDescriptor) {
+	// Send the file name
 	sendBytes(socketDescriptor, fileName, strlen(fileName), 0);
 
 	int fileDescriptor;
@@ -68,6 +69,7 @@ void sendFile(const char* fileName, int socketDescriptor) {
 	char* fileBuffer = malloc(100000);
 	read(fileDescriptor, fileBuffer, fileSize);
 	
+	// Send the contents of the file
 	sendBytes(socketDescriptor, fileBuffer, fileSize, 0);
 }
 
