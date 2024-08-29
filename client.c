@@ -55,6 +55,14 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
+/*
+ * Name: sendFile
+ * Purpose: Send a file along with its name to a waiting server
+ * Input: 
+ * - The name of the file to send
+ * - Socket Descriptor of the socket to send the file out on
+ * Output: None
+ */
 void sendFile(const char* fileName, int socketDescriptor) {
 	// Send the file name
 	sendBytes(socketDescriptor, fileName, strlen(fileName), 0);
@@ -73,6 +81,16 @@ void sendFile(const char* fileName, int socketDescriptor) {
 	sendBytes(socketDescriptor, fileBuffer, fileSize, 0);
 }
 
+/*
+ * Name: sendBytes
+ * Purpose: Send a desired number of bytes out on a Socket
+ * Input:
+ * - Socket Descriptor of the socket to send the bytes with
+ * - Buffer containing the bytes to send
+ * - Amount of bytes to send
+ * - Flags? (lowkey don't remember why I put this here)
+ * Output: None
+ */
 void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int fileSize, int flags) {
 	printf("Sending message: \n");
 	int i;
@@ -93,6 +111,16 @@ void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int f
 	}
 }
 
+/*
+ * Name: printFileInformation
+ * Purpose: Utilize the stat data structure to print out various bits of
+ * info about a particular file. Currently only using it to print out the
+ * size of the file.
+ * Input: 
+ * - The name of the file
+ * - The stat data structure corrosponding to the file
+ * Output: None
+ */
 void printFileInformation(const char* fileName, struct stat fileInformation) {
 	printf("Information about %s:\n", fileName);
 	printf("Total size, in bytes: %ld\n", fileInformation.st_size);			

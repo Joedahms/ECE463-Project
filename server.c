@@ -16,8 +16,6 @@ int receiveMessage(int, char*, int);
 void receiveFile(int);
 
 int main(int argc, char* argv[]) {
-
-
 	switch (argc) {					// Check how many command line arguments are passed
 		case 1:
 			printf("Running server in normal mode\n");
@@ -59,16 +57,27 @@ int main(int argc, char* argv[]) {
 	int incomingSocketDescriptor;
 	socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
 
+	// Continously listen for new files
 	while (1) {
 		incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
 		receiveFile(incomingSocketDescriptor);
 	}
 	
 	freeaddrinfo(serverAddressInfo);
-
 	return 0;
 }
 
+/*
+ * Name: receiveMessage
+ * Purpose: This function is for receiving a set number of bytes into
+ * a buffer
+ * Input: 
+ * - Socket Descriptor of the accepted transmission
+ * - Buffer to put the received data into
+ * - The size of the message to receive in bytes
+ * Output: 
+ * - The number of bytes received into the buffer
+ */
 int receiveMessage(int incomingSocketDescriptor, char* incomingMessageBuffer, int messageSize) {
 	// Recieve incoming message
 	int bytesReceived = 0;
@@ -86,6 +95,13 @@ int receiveMessage(int incomingSocketDescriptor, char* incomingMessageBuffer, in
 	return bytesReceived;
 }
 
+/*
+ * Name: receiveFile
+ * Purpose: This function is for reading a file into the present working directory.
+ * The file name will be the same as the file that was sent.
+ * Input: Socket Descriptor of the accepted transmission
+ * Output: None
+ */
 void receiveFile(int incomingSocketDescriptor) {
 	int bytesReceived;
 	int i;
