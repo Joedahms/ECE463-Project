@@ -1,3 +1,5 @@
+#define USER_INPUT_BUFFER_LENGTH 40
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -17,24 +19,30 @@ void sendBytes(int, const char*, unsigned long int, int);
 void printFileInformation(const char*, struct stat);
 
 int main(int argc, char* argv[]) {
-	char* fileName = malloc(20);
 
+	//char* fileName = malloc(20);
 	switch (argc) {					// Check how many command line arguments are passed
 		case 1:
-			printf("%s\n", "Running client in normal mode");
+			printf("Running client in normal mode\n");
 			break;
 		case 2:
 			if (strcmp(argv[1], "-d") == 0) {	// Check if debug flag
 				debugFlag = 1;
 				printf("%s\n", "Running client in debug mode");
 			}
-			else {					// Filename
-				strcpy(fileName, argv[1]);
+			else {
+				printf("Invalid usage of client");	// Could make this printout better
 			}
+//			else {					// Filename
+				//strcpy(fileName, argv[1]);
+//			}
 			break;
 		default:
+			printf("Invalid usage of client");	// Could make this printout better
 	}
 	
+	char* fileName = malloc(20);
+
 	int status;
 	struct addrinfo hints;
 	struct addrinfo* clientAddressInfo;
@@ -48,9 +56,25 @@ int main(int argc, char* argv[]) {
 	int socketDescriptor;
 	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
 
-	connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
-
-	sendFile(fileName, socketDescriptor);
+	int i;
+	while(1) {
+		int i;
+		char userInput[USER_INPUT_BUFFER_LENGTH];
+    fgets(userInput, USER_INPUT_BUFFER_LENGTH, stdin);
+    userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
+    if (debugFlag) {
+      printf("User Input: %s\n", userInput);
+    }
+		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
+      printf("Connecting to server...\n");
+      connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
+      printf("Connected to server...\n");
+      sendFile(&userInput[4], socketDescriptor);
+		}
+		else if (userInput[0] == 'g' && userInput[1] == 'e' && userInput[2] == 't') {
+			printf("get found\n");
+		}
+	}
 	
 	return 0;
 }
@@ -65,20 +89,37 @@ int main(int argc, char* argv[]) {
  */
 void sendFile(const char* fileName, int socketDescriptor) {
 	// Send the file name
+  int fileNameLength = strlen(fileName);
+  printf("Sending file: %s\n", fileName);
+  if (debugFlag) {
+    printf("Length of file name: %d\n", fileNameLength);
+  }
 	sendBytes(socketDescriptor, fileName, strlen(fileName), 0);
 
+  // Open the file
 	int fileDescriptor;
+  printf("Opening file...\n");
 	fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
+  printf("File Open\n");
 
+  // Get the size of the file in bytes
 	struct stat fileInformation;
-	stat(fileName, &fileInformation);
+	if (stat(fileName, &fileInformation) == -1) {
+    printf("Stat Error\n");
+    exit(1);
+  };
 	unsigned long int fileSize = fileInformation.st_size;
 
+  // Read the contents of the file into the file buffer
 	char* fileBuffer = malloc(100000);
+  printf("Reading File...\n");
 	read(fileDescriptor, fileBuffer, fileSize);
-	
+  printf("File Read\n");
+
 	// Send the contents of the file
+  printf("Sending file contents...\n");
 	sendBytes(socketDescriptor, fileBuffer, fileSize, 0);
+  printf("File contents sent\n");
 }
 
 /*
@@ -90,14 +131,19 @@ void sendFile(const char* fileName, int socketDescriptor) {
  * - Amount of bytes to send
  * - Flags? (lowkey don't remember why I put this here)
  * Output: None
+ * Notes: need to change variable names to be more ambiguous
  */
 void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int fileSize, int flags) {
-	printf("Sending message: \n");
+  if (debugFlag) {
+    printf("File size: %ld\n", fileSize);
+  }
+  // Print the bytes to send
+  printf("Bytes to be sent:\n\n");
 	int i;
 	for (i = 0; i < fileSize; i++) {
 		printf("%c", fileBuffer[i]);
 	}
-	printf("\n");
+  printf("\n \n");
 
 	int bytesSent = 0;
 	bytesSent = send(socketDescriptor, fileBuffer, fileSize, 0);

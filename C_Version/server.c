@@ -106,12 +106,12 @@ void receiveFile(int incomingSocketDescriptor) {
 	int bytesReceived;
 	int i;
 
-	char* fileName = malloc(20);
-	bytesReceived = receiveMessage(incomingSocketDescriptor, fileName, 20);
-	printf("Filename received: \n");
-	for (i = 0; i < bytesReceived; i++) {
-		printf("%c", fileName[i]);
-	}
+	char* receivedFileName = malloc(20);
+	bytesReceived = receiveMessage(incomingSocketDescriptor, receivedFileName, 20);
+	printf("Filename received: %s\n", receivedFileName);
+//	for (i = 0; i < bytesReceived; i++) {
+//		printf("%c", fileName[i]);
+//	}
 	printf("\n");
 
 	char* fileContents = malloc(100000);
@@ -122,7 +122,9 @@ void receiveFile(int incomingSocketDescriptor) {
 	}
 	printf("\n");
 
-	strcat(fileName, "_dupe");
+  char* fileName = malloc(30);
+  fileName = "test/";
+  strcat(fileName, receivedFileName); 
 
 	int receivedFile;
 	receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
