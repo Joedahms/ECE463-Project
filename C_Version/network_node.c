@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
-
 #include "network_node.h"
 
 /*
@@ -18,37 +17,37 @@
  * Output: None
  */
 void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
-	// Send the file name
+  // Send the file name
   int fileNameLength = strlen(fileName);
   printf("Sending file: %s\n", fileName);
   if (debugFlag) {
     printf("Length of file name: %d\n", fileNameLength);
   }
-	sendBytes(socketDescriptor, fileName, strlen(fileName), debugFlag);
+  sendBytes(socketDescriptor, fileName, strlen(fileName), debugFlag);
 
   // Open the file
-	int fileDescriptor;
+  int fileDescriptor;
   printf("Opening file...\n");
-	fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
+  fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
   printf("File Open\n");
 
   // Get the size of the file in bytes
-	struct stat fileInformation;
-	if (stat(fileName, &fileInformation) == -1) {
+  struct stat fileInformation;
+  if (stat(fileName, &fileInformation) == -1) {
     printf("Stat Error\n");
     exit(1);
   };
-	unsigned long int fileSize = fileInformation.st_size;
+  unsigned long int fileSize = fileInformation.st_size;
 
   // Read the contents of the file into the file buffer
-	char* fileBuffer = malloc(100000);
+  char* fileBuffer = malloc(100000);
   printf("Reading File...\n");
-	read(fileDescriptor, fileBuffer, fileSize);
+  read(fileDescriptor, fileBuffer, fileSize);
   printf("File Read\n");
 
-	// Send the contents of the file
+  // Send the contents of the file
   printf("Sending file contents...\n");
-	sendBytes(socketDescriptor, fileBuffer, fileSize, debugFlag);
+  sendBytes(socketDescriptor, fileBuffer, fileSize, debugFlag);
   printf("File contents sent\n");
 }
 
@@ -63,28 +62,25 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
  * Output: None
  * Notes: need to change variable names to be more ambiguous
  */
-void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int fileSize, uint8_t debugFlag) {
-  if (debugFlag) {
-    printf("File size: %ld\n", fileSize);
-  }
+void sendBytes(int socketDescriptor, const char* buffer, unsigned long int bufferSize, uint8_t debugFlag) {
   // Print the bytes to send
   printf("Bytes to be sent:\n\n");
-	int i;
-	for (i = 0; i < fileSize; i++) {
-		printf("%c", fileBuffer[i]);
-	}
+  int i;
+  for (i = 0; i < bufferSize; i++) {
+    printf("%c", buffer[i]);
+  }
   printf("\n \n");
 
-	int bytesSent = 0;
-	bytesSent = send(socketDescriptor, fileBuffer, fileSize, 0);
-	if (bytesSent != -1) {						// No error
-		if (debugFlag) {
-			printf("Bytes sent: %d\n", bytesSent);
-		}	
-	}
-	else {
-		printf("Error: send failed\n");
-	}
+  int bytesSent = 0;
+  bytesSent = send(socketDescriptor, buffer, bufferSize, 0);
+  if (bytesSent != -1) {						// No error
+    if (debugFlag) {
+      printf("Bytes sent: %d\n", bytesSent);
+    }	
+  }
+  else {
+    printf("Error: send failed\n");
+  }
 }
 
 /*
@@ -100,19 +96,19 @@ void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int f
  */
 int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uint8_t debugFlag) {
   printf("Receiving bytes...\n");
-	int numberOfBytesReceived = 0;
-	numberOfBytesReceived = recv(incomingSocketDescriptor, buffer, bufferSize, 0);
-	if (debugFlag) {
-		// Print out incoming message
-		int i;
-		printf("Bytes received: \n");
-		for (i = 0; i < numberOfBytesReceived; i++) {
-			printf("%c", buffer[i]);
-		}
-		printf("\n");
-	}
+  int numberOfBytesReceived = 0;
+  numberOfBytesReceived = recv(incomingSocketDescriptor, buffer, bufferSize, 0);
+  if (debugFlag) {
+    // Print out incoming message
+    int i;
+    printf("Bytes received: \n");
+    for (i = 0; i < numberOfBytesReceived; i++) {
+      printf("%c", buffer[i]);
+    }
+    printf("\n");
+  }
   printf("%d bytes received\n", numberOfBytesReceived);
-	return numberOfBytesReceived;
+  return numberOfBytesReceived;
 }
 
 /*
@@ -125,20 +121,20 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
 void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
   printf("Receiving File...\n");
 
-	int bytesReceived;
-	int i;
+  int bytesReceived;
+  int i;
 
   // Receive file name
   printf("Receiving file name...\n");
-	char* receivedFileName = malloc(20);
-	bytesReceived = receiveBytes(incomingSocketDescriptor, receivedFileName, 20, debugFlag);
-	printf("Filename received: %s\n", receivedFileName);
+  char* receivedFileName = malloc(20);
+  bytesReceived = receiveBytes(incomingSocketDescriptor, receivedFileName, 20, debugFlag);
+  printf("Filename received: %s\n", receivedFileName);
 
   // Receive file contents
   printf("Receiving file contents...\n");
-	char* fileContents = malloc(1000);
-	bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000, debugFlag);
-	printf("File contents received: \n");
+  char* fileContents = malloc(1000);
+  bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000, debugFlag);
+  printf("File contents received: \n");
 
   // Change the filename so that the received file is put in the test directory
   char fileName[30] = "test/";
@@ -147,12 +143,12 @@ void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
   // Open and write to the new file
   int receivedFile;
   printf("Opening received file...\n");
-	receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
+  receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
   printf("Received file opened\n");
   printf("Writing received file...\n");
-	write(receivedFile, fileContents, bytesReceived);
+  write(receivedFile, fileContents, bytesReceived);
   printf("Received file written\n");
-  
+
   printf("File received\n");
 }
 

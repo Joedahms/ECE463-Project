@@ -21,8 +21,6 @@ int socketDescriptor;
 int incomingSocketDescriptor;
 
 // Forward declarations
-//int receiveMessage(int, char*, int);
-//void receiveFile(int);
 void shutdownServer(int);
 
 // Main fucntion
@@ -85,79 +83,6 @@ int main(int argc, char* argv[]) {
 	
 	return 0;
 }
-
-/*
- * Name: receiveMessage
- * Purpose: This function is for receiving a set number of bytes into
- * a buffer
- * Input: 
- * - Socket Descriptor of the accepted transmission
- * - Buffer to put the received data into
- * - The size of the message to receive in bytes
- * Output: 
- * - The number of bytes received into the buffer
- */
-/*
-int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize) {
-  printf("Receiving bytes...\n");
-	int numberOfBytesReceived = 0;
-	numberOfBytesReceived = recv(incomingSocketDescriptor, buffer, bufferSize, 0);
-	if (debugFlag) {
-		// Print out incoming message
-		int i;
-		printf("Bytes received: \n");
-		for (i = 0; i < numberOfBytesReceived; i++) {
-			printf("%c", buffer[i]);
-		}
-		printf("\n");
-	}
-  printf("%d bytes received\n", numberOfBytesReceived);
-	return numberOfBytesReceived;
-}
-*/
-
-/*
- * Name: receiveFile
- * Purpose: This function is for reading a file into the present working directory.
- * The file name will be the same as the file that was sent.
- * Input: Socket Descriptor of the accepted transmission
- * Output: None
- */
-/*
-void receiveFile(int incomingSocketDescriptor) {
-  printf("Receiving File...\n");
-
-	int bytesReceived;
-	int i;
-
-  // Receive file name
-  printf("Receiving file name...\n");
-	char* receivedFileName = malloc(20);
-	bytesReceived = receiveBytes(incomingSocketDescriptor, receivedFileName, 20);
-	printf("Filename received: %s\n", receivedFileName);
-
-  // Receive file contents
-  printf("Receiving file contents...\n");
-	char* fileContents = malloc(1000);
-	bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000);
-	printf("File contents received: \n");
-
-  // Change the filename so that the received file is put in the test directory
-  char fileName[30] = "test/";
-  strcat(fileName, receivedFileName); 
-
-  // Open and write to the new file
-  int receivedFile;
-  printf("Opening received file...\n");
-	receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
-  printf("Received file opened\n");
-  printf("Writing received file...\n");
-	write(receivedFile, fileContents, bytesReceived);
-  printf("Received file written\n");
-  
-  printf("File received\n");
-}
-*/
 
 /*
 * Name: shutdownServer
