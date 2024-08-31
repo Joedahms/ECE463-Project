@@ -59,13 +59,18 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(getaddrinfoReturnValue));	
 		exit(EXIT_FAILURE);
 	}
-
+  
+  printf("Setting up socket...\n");
 	socketDescriptor = socket(serverAddressInfo->ai_family, serverAddressInfo->ai_socktype, 0);
 	fcntl(socketDescriptor, F_SETFD, O_NONBLOCK);
+  printf("Socket set up\n");
 
+  printf("Binding socket...\n");
 	bind(socketDescriptor, serverAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
+  printf("Socket bound\n");
 	
 	listen(socketDescriptor, 10);		// Limit queued connections to 10
+  printf("Listening...\n");
 
 	struct sockaddr incomingAddress;
 	int incomingSocketDescriptor;
@@ -85,8 +90,10 @@ int main(int argc, char* argv[]) {
     */
 
 		incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
+    printf("Connection accepted\n");
 		receiveFile(incomingSocketDescriptor);
     close(incomingSocketDescriptor);
+    printf("Connection terminated\n");
 	}
 	
 	return 0;
@@ -152,12 +159,12 @@ void receiveFile(int incomingSocketDescriptor) {
 
   // Put the new file in the test directory
   char* fileName = malloc(30);
-  /*
   fileName = "test/";
-  strcat(fileName, receivedFileName); 
+  //strcat(fileName, receivedFileName); 
 
-	int receivedFile;
-  printf("Opening received file...\n");
+	//int receivedFile;
+  //printf("Opening received file...\n");
+  /*
 	receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
   printf("Received file opened\n");
   printf("Writing received file...\n");

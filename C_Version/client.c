@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "client.h"
 
@@ -72,8 +73,15 @@ int main(int argc, char* argv[]) {
       printf("User Input: %s\n", userInput);
     }
 		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
+      int connectionStatus;
       printf("Connecting to server...\n");
-      connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
+      connectionStatus = connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
+      if (connectionStatus != 0) {
+        char* errorMessage = malloc(1024);
+        strcpy(errorMessage, strerror(errno));
+        printf("Connection failed with error %s\n", errorMessage);
+        exit(1);
+      }
       printf("Connected to server...\n");
       sendFile(&userInput[4], socketDescriptor);
 		}
