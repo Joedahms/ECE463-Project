@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <errno.h>
 
+#include "network_node.h"
 #include "client.h"
 
 // Global flags
@@ -21,8 +22,8 @@ uint8_t debugFlag = 0;				// Can add conditional statements with this flag to pr
 int socketDescriptor;
 struct addrinfo* clientAddressInfo;
 
-void sendFile(const char*, int);
-void sendBytes(int, const char*, unsigned long int, int);
+//void sendFile(const char*, int);
+//void sendBytes(int, const char*, unsigned long int, int);
 void printFileInformation(const char*, struct stat);
 void shutdownClient(int);
 
@@ -82,7 +83,7 @@ int main(int argc, char* argv[]) {
         exit(1);
       }
       printf("Connected to server...\n");
-      sendFile(&userInput[4], socketDescriptor);  
+      sendFile(&userInput[4], socketDescriptor, debugFlag);  
       close(socketDescriptor);                                                                    // Close current connection
       socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
@@ -100,6 +101,7 @@ int main(int argc, char* argv[]) {
 	return 0;
 }
 
+
 /*
  * Name: sendFile
  * Purpose: Send a file along with its name to a waiting server
@@ -108,6 +110,7 @@ int main(int argc, char* argv[]) {
  * - Socket Descriptor of the socket to send the file out on
  * Output: None
  */
+/*
 void sendFile(const char* fileName, int socketDescriptor) {
 	// Send the file name
   int fileNameLength = strlen(fileName);
@@ -142,6 +145,7 @@ void sendFile(const char* fileName, int socketDescriptor) {
 	sendBytes(socketDescriptor, fileBuffer, fileSize, 0);
   printf("File contents sent\n");
 }
+*/
 
 /*
  * Name: sendBytes
@@ -154,6 +158,7 @@ void sendFile(const char* fileName, int socketDescriptor) {
  * Output: None
  * Notes: need to change variable names to be more ambiguous
  */
+/*
 void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int fileSize, int flags) {
   if (debugFlag) {
     printf("File size: %ld\n", fileSize);
@@ -177,6 +182,7 @@ void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int f
 		printf("Error: send failed\n");
 	}
 }
+*/
 
 /*
  * Name: printFileInformation

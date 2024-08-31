@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include "network_node.h"
 #include "server.h"
 
 // Global flags
@@ -20,8 +21,8 @@ int socketDescriptor;
 int incomingSocketDescriptor;
 
 // Forward declarations
-int receiveMessage(int, char*, int);
-void receiveFile(int);
+//int receiveMessage(int, char*, int);
+//void receiveFile(int);
 void shutdownServer(int);
 
 // Main fucntion
@@ -77,7 +78,7 @@ int main(int argc, char* argv[]) {
   while (1) {
     incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
     printf("Connection accepted\n");
-    receiveFile(incomingSocketDescriptor);
+    receiveFile(incomingSocketDescriptor, debugFlag);
     close(incomingSocketDescriptor);
     printf("Connection terminated\n");
   }
@@ -96,6 +97,7 @@ int main(int argc, char* argv[]) {
  * Output: 
  * - The number of bytes received into the buffer
  */
+/*
 int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize) {
   printf("Receiving bytes...\n");
 	int numberOfBytesReceived = 0;
@@ -112,6 +114,7 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize) {
   printf("%d bytes received\n", numberOfBytesReceived);
 	return numberOfBytesReceived;
 }
+*/
 
 /*
  * Name: receiveFile
@@ -120,6 +123,7 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize) {
  * Input: Socket Descriptor of the accepted transmission
  * Output: None
  */
+/*
 void receiveFile(int incomingSocketDescriptor) {
   printf("Receiving File...\n");
 
@@ -153,6 +157,7 @@ void receiveFile(int incomingSocketDescriptor) {
   
   printf("File received\n");
 }
+*/
 
 /*
 * Name: shutdownServer
