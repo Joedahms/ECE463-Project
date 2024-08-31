@@ -9,18 +9,26 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "client.h"
 
+// Global flags
 uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
+
+// Global variables (for signal handler)
+int socketDescriptor;
+struct addrinfo* clientAddressInfo;
 
 void sendFile(const char*, int);
 void sendBytes(int, const char*, unsigned long int, int);
 void printFileInformation(const char*, struct stat);
+void shutdownClient(int);
 
+// Main
 int main(int argc, char* argv[]) {
+  signal(SIGINT, shutdownClient);
 
-	//char* fileName = malloc(20);
 	switch (argc) {					// Check how many command line arguments are passed
 		case 1:
 			printf("Running client in normal mode\n");
@@ -45,7 +53,6 @@ int main(int argc, char* argv[]) {
 
 	int status;
 	struct addrinfo hints;
-	struct addrinfo* clientAddressInfo;
 
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
@@ -53,7 +60,6 @@ int main(int argc, char* argv[]) {
 
 	getaddrinfo(NULL, "3940", &hints, &clientAddressInfo);
 
-	int socketDescriptor;
 	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
 
 	int i;
@@ -170,4 +176,11 @@ void sendBytes(int socketDescriptor, const char* fileBuffer, unsigned long int f
 void printFileInformation(const char* fileName, struct stat fileInformation) {
 	printf("Information about %s:\n", fileName);
 	printf("Total size, in bytes: %ld\n", fileInformation.st_size);			
+}
+
+void shutdownClient(int signal) {
+  close(socketDescriptor);
+	freeaddrinfo(clientAddressInfo);
+  printf("\n");
+  exit(0);
 }

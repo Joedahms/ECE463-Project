@@ -1,3 +1,5 @@
+#define USER_INPUT_BUFFER_LENGTH 2
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -7,16 +9,30 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "server.h"
 
+// Global flags
 uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
+uint8_t serverRunningFlag = 1;
 
+// Global variables (for signal handler)
+struct addrinfo* serverAddressInfo;
+int socketDescriptor;
+int incomingSocketDescriptor;
+
+// Forward declarations
 int receiveMessage(int, char*, int);
 void receiveFile(int);
+void shutdownServer(int);
 
+// Main fucntion
 int main(int argc, char* argv[]) {
-	switch (argc) {					// Check how many command line arguments are passed
+  signal(SIGINT, shutdownServer);
+
+  // Check how many command line areguements passed
+	switch (argc) {
 		case 1:
 			printf("Running server in normal mode\n");
 			break;
@@ -31,12 +47,11 @@ int main(int argc, char* argv[]) {
 
 	int status;
 	struct addrinfo hints;
-	struct addrinfo* serverAddressInfo;
 
-	hints.ai_family = AF_INET;		// IPV4
-	hints.ai_socktype = SOCK_STREAM;	// TCP
-	hints.ai_protocol = 0;			// Any protocol
-	hints.ai_flags = AI_PASSIVE;		// If node is null, will bind to IP of host
+	hints.ai_family = AF_INET;        // IPV4
+	hints.ai_socktype = SOCK_STREAM;  // TCP
+	hints.ai_protocol = 0;            // Any protocol
+	hints.ai_flags = AI_PASSIVE;      // If node is null, will bind to IP of host
 	
 	int getaddrinfoReturnValue;
 	getaddrinfoReturnValue = getaddrinfo(NULL, "3940", &hints, &serverAddressInfo);
@@ -45,7 +60,6 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
-	int socketDescriptor;
 	socketDescriptor = socket(serverAddressInfo->ai_family, serverAddressInfo->ai_socktype, 0);
 	fcntl(socketDescriptor, F_SETFD, O_NONBLOCK);
 
@@ -58,12 +72,23 @@ int main(int argc, char* argv[]) {
 	socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
 
 	// Continously listen for new files
-	while (1) {
+	while (serverRunningFlag) {
+    /*
+    char userInput[USER_INPUT_BUFFER_LENGTH];
+    fgets(userInput, USER_INPUT_BUFFER_LENGTH, stdin);
+    userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
+
+    if(userInput[0] == 'Q') {
+      serverRunningFlag = 0;
+      break;
+    }
+    */
+
 		incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
 		receiveFile(incomingSocketDescriptor);
+    close(incomingSocketDescriptor);
 	}
 	
-	freeaddrinfo(serverAddressInfo);
 	return 0;
 }
 
@@ -78,21 +103,21 @@ int main(int argc, char* argv[]) {
  * Output: 
  * - The number of bytes received into the buffer
  */
-int receiveMessage(int incomingSocketDescriptor, char* incomingMessageBuffer, int messageSize) {
-	// Recieve incoming message
-	int bytesReceived = 0;
-	bytesReceived = recv(incomingSocketDescriptor, incomingMessageBuffer, messageSize, 0);
+int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize) {
+  printf("Receiving bytes...\n");
+	int numberOfBytesReceived = 0;
+	numberOfBytesReceived = recv(incomingSocketDescriptor, buffer, bufferSize, 0);
 	if (debugFlag) {
-		printf("Bytes received in receiveMessage: %d\n", bytesReceived);
 		// Print out incoming message
 		int i;
-		printf("Message received in receiveMessage: \n");
-		for (i = 0; i < bytesReceived; i++) {
-			printf("%c", incomingMessageBuffer[i]);
+		printf("Bytes received: \n");
+		for (i = 0; i < numberOfBytesReceived; i++) {
+			printf("%c", buffer[i]);
 		}
 		printf("\n");
 	}
-	return bytesReceived;
+  printf("%d bytes received\n", numberOfBytesReceived);
+	return numberOfBytesReceived;
 }
 
 /*
@@ -103,31 +128,56 @@ int receiveMessage(int incomingSocketDescriptor, char* incomingMessageBuffer, in
  * Output: None
  */
 void receiveFile(int incomingSocketDescriptor) {
+  printf("Receiving File...\n");
+
 	int bytesReceived;
 	int i;
 
+  // Receive file name
+  printf("Receiving file name...\n");
 	char* receivedFileName = malloc(20);
-	bytesReceived = receiveMessage(incomingSocketDescriptor, receivedFileName, 20);
+	bytesReceived = receiveBytes(incomingSocketDescriptor, receivedFileName, 20);
 	printf("Filename received: %s\n", receivedFileName);
-//	for (i = 0; i < bytesReceived; i++) {
-//		printf("%c", fileName[i]);
-//	}
-	printf("\n");
 
-	char* fileContents = malloc(100000);
-	bytesReceived = receiveMessage(incomingSocketDescriptor, fileContents, 100000);
+  // Receive file contents
+  printf("Receiving file contents...\n");
+	char* fileContents = malloc(1000);
+	bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000);
 	printf("File contents received: \n");
-	for (i = 0; i < bytesReceived; i++) {
-		printf("%c", fileContents[i]);
-	}
-	printf("\n");
+//  printf("%ld", sizeof(fileContents));
+	//for (i = 0; i < bytesReceived; i++) {
+//		printf("%c", fileContents[i]);
+	//}
+  //printf("\n");
 
+  // Put the new file in the test directory
   char* fileName = malloc(30);
+  /*
   fileName = "test/";
   strcat(fileName, receivedFileName); 
 
 	int receivedFile;
+  printf("Opening received file...\n");
 	receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
-	printf("%d\n", bytesReceived);
+  printf("Received file opened\n");
+  printf("Writing received file...\n");
 	write(receivedFile, fileContents, bytesReceived);
+  printf("Received file written\n");
+  */
+  printf("File received\n");
+}
+
+/*
+* Name: shutdownServer
+* Purpose: Gracefully shutdown the server when the user enters
+* ctrl-c. Closes the sockets and frees addrinfo data structure
+* Input: The signal raised
+* Output: None
+*/
+void shutdownServer(int signal) {
+  close(incomingSocketDescriptor);
+  close(socketDescriptor);
+	freeaddrinfo(serverAddressInfo);
+  printf("\n");
+  exit(0);
 }
