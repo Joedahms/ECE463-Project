@@ -83,7 +83,9 @@ int main(int argc, char* argv[]) {
         exit(1);
       }
       printf("Connected to server...\n");
-      sendFile(&userInput[4], socketDescriptor);
+      sendFile(&userInput[4], socketDescriptor);  
+      close(socketDescriptor);                                                                    // Close current connection
+      socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
 		else if (userInput[0] == 'g' && userInput[1] == 'e' && userInput[2] == 't') {
 			printf("get found\n");

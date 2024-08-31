@@ -158,19 +158,18 @@ void receiveFile(int incomingSocketDescriptor) {
   //printf("\n");
 
   // Put the new file in the test directory
-  char* fileName = malloc(30);
-  fileName = "test/";
-  //strcat(fileName, receivedFileName); 
+  char fileName[30] = "test/";
+  strcat(fileName, receivedFileName); 
 
-	//int receivedFile;
-  //printf("Opening received file...\n");
-  /*
+  int receivedFile;
+  printf("Opening received file...\n");
+  
 	receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
   printf("Received file opened\n");
   printf("Writing received file...\n");
 	write(receivedFile, fileContents, bytesReceived);
   printf("Received file written\n");
-  */
+  
   printf("File received\n");
 }
 
