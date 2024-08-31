@@ -1,5 +1,3 @@
-#define USER_INPUT_BUFFER_LENGTH 2
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -15,7 +13,6 @@
 
 // Global flags
 uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
-uint8_t serverRunningFlag = 1;
 
 // Global variables (for signal handler)
 struct addrinfo* serverAddressInfo;
@@ -61,40 +58,29 @@ int main(int argc, char* argv[]) {
 	}
   
   printf("Setting up socket...\n");
-	socketDescriptor = socket(serverAddressInfo->ai_family, serverAddressInfo->ai_socktype, 0);
-	fcntl(socketDescriptor, F_SETFD, O_NONBLOCK);
+  socketDescriptor = socket(serverAddressInfo->ai_family, serverAddressInfo->ai_socktype, 0);
+  fcntl(socketDescriptor, F_SETFD, O_NONBLOCK);
   printf("Socket set up\n");
 
   printf("Binding socket...\n");
-	bind(socketDescriptor, serverAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
+  bind(socketDescriptor, serverAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
   printf("Socket bound\n");
 	
-	listen(socketDescriptor, 10);		// Limit queued connections to 10
+  listen(socketDescriptor, 10);		// Limit queued connections to 10
   printf("Listening...\n");
 
-	struct sockaddr incomingAddress;
-	int incomingSocketDescriptor;
-	socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
+  struct sockaddr incomingAddress;
+  int incomingSocketDescriptor;
+  socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
 
 	// Continously listen for new files
-	while (serverRunningFlag) {
-    /*
-    char userInput[USER_INPUT_BUFFER_LENGTH];
-    fgets(userInput, USER_INPUT_BUFFER_LENGTH, stdin);
-    userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
-
-    if(userInput[0] == 'Q') {
-      serverRunningFlag = 0;
-      break;
-    }
-    */
-
-		incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
+  while (1) {
+    incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
     printf("Connection accepted\n");
-		receiveFile(incomingSocketDescriptor);
+    receiveFile(incomingSocketDescriptor);
     close(incomingSocketDescriptor);
     printf("Connection terminated\n");
-	}
+  }
 	
 	return 0;
 }
@@ -151,19 +137,14 @@ void receiveFile(int incomingSocketDescriptor) {
 	char* fileContents = malloc(1000);
 	bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000);
 	printf("File contents received: \n");
-//  printf("%ld", sizeof(fileContents));
-	//for (i = 0; i < bytesReceived; i++) {
-//		printf("%c", fileContents[i]);
-	//}
-  //printf("\n");
 
-  // Put the new file in the test directory
+  // Change the filename so that the received file is put in the test directory
   char fileName[30] = "test/";
   strcat(fileName, receivedFileName); 
 
+  // Open and write to the new file
   int receivedFile;
   printf("Opening received file...\n");
-  
 	receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
   printf("Received file opened\n");
   printf("Writing received file...\n");

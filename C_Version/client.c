@@ -42,11 +42,8 @@ int main(int argc, char* argv[]) {
 			else {
 				printf("Invalid usage of client");	// Could make this printout better
 			}
-//			else {					// Filename
-				//strcpy(fileName, argv[1]);
-//			}
 			break;
-		default:
+    default:
 			printf("Invalid usage of client");	// Could make this printout better
 	}
 	
@@ -63,19 +60,21 @@ int main(int argc, char* argv[]) {
 
 	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
 
-	int i;
+  // Constantly check user input for a put/get command
 	while(1) {
-		int i;
+    // Get user input and store in userInput buffer
 		char userInput[USER_INPUT_BUFFER_LENGTH];
     fgets(userInput, USER_INPUT_BUFFER_LENGTH, stdin);
     userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
-    if (debugFlag) {
-      printf("User Input: %s\n", userInput);
-    }
+
+    // put
+    // Send put along with file name
+    // Send file
 		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
-      int connectionStatus;
       printf("Connecting to server...\n");
+      int connectionStatus;
       connectionStatus = connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
+      // Check if connection was successful
       if (connectionStatus != 0) {
         char* errorMessage = malloc(1024);
         strcpy(errorMessage, strerror(errno));
@@ -87,9 +86,15 @@ int main(int argc, char* argv[]) {
       close(socketDescriptor);                                                                    // Close current connection
       socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
+    // get
+    // Send get along with file name
+    // Receive file
 		else if (userInput[0] == 'g' && userInput[1] == 'e' && userInput[2] == 't') {
-			printf("get found\n");
+      
 		}
+    else {
+      // Enter valid command (put/get)
+    }
 	}
 	
 	return 0;
