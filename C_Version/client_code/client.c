@@ -12,7 +12,7 @@
 #include <signal.h>
 #include <errno.h>
 
-#include "network_node.h"
+#include "../common/network_node.h"
 #include "client.h"
 
 // Global flags

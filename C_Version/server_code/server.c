@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <signal.h>
 
-#include "network_node.h"
+#include "../common/network_node.h"
 #include "server.h"
 
 // Global flags
