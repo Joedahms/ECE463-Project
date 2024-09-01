@@ -36,15 +36,21 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
   // Send the file name
   int fileNameLength = strlen(fileName);
   printf("Sending file: %s\n", fileName);
-  if (debugFlag) {
-    printf("Length of file name: %d\n", fileNameLength);
-  }
-  sendBytes(socketDescriptor, fileName, fileNameLength, debugFlag);
+  printf("Sending %d byte filename: %s...\n", fileNameLength, fileName);
+  int bytesSent = 0;
+  bytesSent = sendBytes(socketDescriptor, fileName, fileNameLength, debugFlag);
+  printf("Sent %d bytes\n", bytesSent);
 
   // Open the file
   int fileDescriptor;
   printf("Opening file...\n");
   fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
+  if (fileDescriptor == -1) {
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Failed to open file \"%s\" with error %s\n", fileName, errorMessage);
+    exit(1);
+  }
   printf("File Open\n");
 
   // Get the size of the file in bytes
@@ -54,17 +60,27 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
     exit(1);
   };
   unsigned long int fileSize = fileInformation.st_size;
+  printf("%s is %ld bytes\n", fileName, fileSize);
 
   // Read the contents of the file into the file buffer
   char* fileBuffer = malloc(100000);
-  printf("Reading File...\n");
-  read(fileDescriptor, fileBuffer, fileSize);
-  printf("File Read\n");
+  printf("Reading file into buffer...\n");
+  ssize_t bytesReadFromFile = 0;
+  bytesReadFromFile = read(fileDescriptor, fileBuffer, fileSize);
+  if (bytesReadFromFile == -1) {            // read failed()
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Failed to read file \"%s\" with error %s\n", fileName, errorMessage);
+    exit(1);
+  }
+  else {
+    printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
+  }
 
   // Send the contents of the file
   printf("Sending file contents...\n");
-  sendBytes(socketDescriptor, fileBuffer, fileSize, debugFlag);
-  printf("File contents sent\n");
+  bytesSent = sendBytes(socketDescriptor, fileBuffer, fileSize, debugFlag);
+  printf("%d bytes of file contents sent\n", bytesSent);
 }
 
 /*
