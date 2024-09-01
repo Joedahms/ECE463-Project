@@ -5,8 +5,24 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <errno.h>
 
 #include "network_node.h"
+
+int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrinfo* destinationAddressInfo) {
+  printf("Connecting to %s...\n", nodeName);
+  int connectionStatus;
+  connectionStatus = connect(socketDescriptor, destinationAddressInfo->ai_addr, destinationAddressInfo->ai_addrlen);
+  // Check if connection was successful
+  if (connectionStatus != 0) {
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Connection to %s failed with error %s\n", nodeName, errorMessage);
+    exit(1);
+  }
+  printf("Connected to %s...\n", nodeName);
+  return socketDescriptor;
+}
 
 /*
  * Name: sendFile
@@ -23,7 +39,7 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
   if (debugFlag) {
     printf("Length of file name: %d\n", fileNameLength);
   }
-  sendBytes(socketDescriptor, fileName, strlen(fileName), debugFlag);
+  sendBytes(socketDescriptor, fileName, fileNameLength, debugFlag);
 
   // Open the file
   int fileDescriptor;
@@ -58,25 +74,26 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
  * - Socket Descriptor of the socket to send the bytes with
  * - Buffer containing the bytes to send
  * - Amount of bytes to send
- * - Flags? (lowkey don't remember why I put this here)
  * Output: None
  * Notes: need to change variable names to be more ambiguous
  */
 void sendBytes(int socketDescriptor, const char* buffer, unsigned long int bufferSize, uint8_t debugFlag) {
-  // Print the bytes to send
-  printf("Bytes to be sent:\n\n");
-  int i;
-  for (i = 0; i < bufferSize; i++) {
-    printf("%c", buffer[i]);
+  if (debugFlag) {
+    // Print the bytes to send
+    printf("Bytes to be sent:\n\n");
+    int i;
+    for (i = 0; i < bufferSize; i++) {
+      printf("%c", buffer[i]);
+    }
+    printf("\n \n");
   }
-  printf("\n \n");
 
   int bytesSent = 0;
   bytesSent = send(socketDescriptor, buffer, bufferSize, 0);
-  if (bytesSent != -1) {						// No error
+  if (bytesSent != -1) {  // No error
     if (debugFlag) {
       printf("Bytes sent: %d\n", bytesSent);
-    }	
+    }
   }
   else {
     printf("Error: send failed\n");
@@ -95,7 +112,6 @@ void sendBytes(int socketDescriptor, const char* buffer, unsigned long int buffe
  * - The number of bytes received into the buffer
  */
 int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uint8_t debugFlag) {
-  printf("Receiving bytes...\n");
   int numberOfBytesReceived = 0;
   numberOfBytesReceived = recv(incomingSocketDescriptor, buffer, bufferSize, 0);
   if (debugFlag) {
@@ -107,7 +123,6 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
     }
     printf("\n");
   }
-  printf("%d bytes received\n", numberOfBytesReceived);
   return numberOfBytesReceived;
 }
 
@@ -128,13 +143,14 @@ void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
   printf("Receiving file name...\n");
   char* receivedFileName = malloc(20);
   bytesReceived = receiveBytes(incomingSocketDescriptor, receivedFileName, 20, debugFlag);
-  printf("Filename received: %s\n", receivedFileName);
+  printf("%d byte filename received: %s\n", bytesReceived, receivedFileName);
+  
 
   // Receive file contents
   printf("Receiving file contents...\n");
   char* fileContents = malloc(1000);
   bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000, debugFlag);
-  printf("File contents received: \n");
+  printf("Received %d bytes of file content\n", bytesReceived);
 
   // Change the filename so that the received file is put in the test directory
   char fileName[30] = "test/";

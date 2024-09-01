@@ -72,6 +72,10 @@ int main(int argc, char* argv[]) {
     // Send put along with file name
     // Send file
 		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
+      const char* nodeName = "server";
+      socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
+      
+      /*
       printf("Connecting to server...\n");
       int connectionStatus;
       connectionStatus = connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
@@ -83,6 +87,15 @@ int main(int argc, char* argv[]) {
         exit(1);
       }
       printf("Connected to server...\n");
+      */
+      
+
+      // Send put command
+      printf("Sending put command...\n");
+      char* command = "put";
+      sendBytes(socketDescriptor, command, strlen(command), debugFlag);
+      printf("Put command sent\n");
+
       sendFile(&userInput[4], socketDescriptor, debugFlag);  
       close(socketDescriptor);                                                                    // Close current connection
       socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection

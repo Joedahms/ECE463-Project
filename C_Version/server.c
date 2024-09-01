@@ -76,6 +76,14 @@ int main(int argc, char* argv[]) {
   while (1) {
     incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
     printf("Connection accepted\n");
+    
+    // Receive the command
+    printf("Receiving command...\n");
+    int commandSize = 0;
+    char* commandBuffer = malloc(4);
+    commandSize = receiveBytes(incomingSocketDescriptor, commandBuffer, 3, debugFlag);
+    printf("Received %d byte command of type %s\n", commandSize, commandBuffer);
+    
     receiveFile(incomingSocketDescriptor, debugFlag);
     close(incomingSocketDescriptor);
     printf("Connection terminated\n");

@@ -1,4 +1,4 @@
-<h3>flowcharts</h3>
+<h3>Flowcharts</h3>
 
 <p>This folder contains my flowcharts for the client and server programs I have written.<br>
 I used the draw.io program to construct these diagrams. Go [here](https://app.diagrams.net/) to <br>
