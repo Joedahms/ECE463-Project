@@ -74,10 +74,10 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
  * - Socket Descriptor of the socket to send the bytes with
  * - Buffer containing the bytes to send
  * - Amount of bytes to send
- * Output: None
+ * Output: Number of bytes sent
  * Notes: need to change variable names to be more ambiguous
  */
-void sendBytes(int socketDescriptor, const char* buffer, unsigned long int bufferSize, uint8_t debugFlag) {
+int sendBytes(int socketDescriptor, const char* buffer, unsigned long int bufferSize, uint8_t debugFlag) {
   if (debugFlag) {
     // Print the bytes to send
     printf("Bytes to be sent:\n\n");
@@ -90,13 +90,14 @@ void sendBytes(int socketDescriptor, const char* buffer, unsigned long int buffe
 
   int bytesSent = 0;
   bytesSent = send(socketDescriptor, buffer, bufferSize, 0);
-  if (bytesSent != -1) {  // No error
-    if (debugFlag) {
-      printf("Bytes sent: %d\n", bytesSent);
-    }
+  if (bytesSent == -1) {  
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Byte send failed with error %s\n", errorMessage);
+    exit(1);
   }
   else {
-    printf("Error: send failed\n");
+    return bytesSent;
   }
 }
 
