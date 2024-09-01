@@ -12,6 +12,6 @@ void receiveFile(int, uint8_t);
 int receiveBytes(int, char*, int, uint8_t);
 
 void sendFile(const char*, int, uint8_t);
-void sendBytes(int, const char*, unsigned long int, uint8_t);
+int sendBytes(int, const char*, unsigned long int, uint8_t);
 
 #endif
