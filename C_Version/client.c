@@ -69,26 +69,9 @@ int main(int argc, char* argv[]) {
     userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
 
     // put
-    // Send put along with file name
-    // Send file
 		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
       const char* nodeName = "server";
       socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
-      
-      /*
-      printf("Connecting to server...\n");
-      int connectionStatus;
-      connectionStatus = connect(socketDescriptor, clientAddressInfo->ai_addr, clientAddressInfo->ai_addrlen);
-      // Check if connection was successful
-      if (connectionStatus != 0) {
-        char* errorMessage = malloc(1024);
-        strcpy(errorMessage, strerror(errno));
-        printf("Connection failed with error %s\n", errorMessage);
-        exit(1);
-      }
-      printf("Connected to server...\n");
-      */
-      
 
       // Send put command
       printf("Sending put command...\n");
@@ -96,15 +79,30 @@ int main(int argc, char* argv[]) {
       sendBytes(socketDescriptor, command, strlen(command), debugFlag);
       printf("Put command sent\n");
 
+      // Send file and create new socket
       sendFile(&userInput[4], socketDescriptor, debugFlag);  
       close(socketDescriptor);                                                                    // Close current connection
       socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
     // get
-    // Send get along with file name
-    // Receive file
 		else if (userInput[0] == 'g' && userInput[1] == 'e' && userInput[2] == 't') {
+      const char* nodeName = "server";
+      socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
       
+      // Send get command
+      printf("Sending get command...\n");
+      char* command = "get";
+      sendBytes(socketDescriptor, command, strlen(command), debugFlag);
+      printf("Get command sent\n");
+
+      printf("Sending file name\n");
+      sendBytes(socketDescriptor, &userInput[4], strlen(userInput), debugFlag);
+      printf("File name sent\n");
+
+      // Receive file and create new socket
+      receiveFile(socketDescriptor, debugFlag);
+      close(socketDescriptor);                                                                    // Close current connection
+      socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
     else {
       // Enter valid command (put/get)

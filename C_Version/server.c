@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
   int incomingSocketDescriptor;
   socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
 
-	// Continously listen for new files
+  // Continously listen for new files
   while (1) {
     incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
     printf("Connection accepted\n");
@@ -83,13 +83,34 @@ int main(int argc, char* argv[]) {
     char* commandBuffer = malloc(4);
     commandSize = receiveBytes(incomingSocketDescriptor, commandBuffer, 3, debugFlag);
     printf("Received %d byte command of type %s\n", commandSize, commandBuffer);
+
+    // Receive a file
+    if (strcmp("put", commandBuffer) == 0) {
+      receiveFile(incomingSocketDescriptor, debugFlag);
+      close(incomingSocketDescriptor);
+      printf("Connection terminated\n");
+    }
+
+    // Send a file
+    else if (strcmp("get", commandBuffer) == 0) {
+      char* requestedFileName = malloc(20);
+      int fileNameBytesReceived;
+      fileNameBytesReceived = receiveBytes(incomingSocketDescriptor, requestedFileName, 20, debugFlag);
+      printf("%d byte filename received: %s\n", fileNameBytesReceived, requestedFileName);
+
+      sendFile(requestedFileName, incomingSocketDescriptor, debugFlag);
+      close(incomingSocketDescriptor);
+      printf("Connection terminated\n");
+    }
+
+    // Invalid command
+    else {
+
+    }
     
-    receiveFile(incomingSocketDescriptor, debugFlag);
-    close(incomingSocketDescriptor);
-    printf("Connection terminated\n");
   }
 	
-	return 0;
+  return 0;
 }
 
 /*
