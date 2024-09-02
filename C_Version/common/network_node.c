@@ -169,14 +169,10 @@ void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
   bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000, debugFlag);
   printf("Received %d bytes of file content\n", bytesReceived);
 
-  // Change the filename so that the received file is put in the test directory
-  char fileName[30] = "test/";
-  strcat(fileName, receivedFileName); 
-
   // Open and write to the new file
   int receivedFile;
   printf("Opening received file...\n");
-  receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
+  receivedFile = open(receivedFileName, (O_CREAT | O_RDWR), S_IRWXU);
   printf("Received file opened\n");
   printf("Writing received file...\n");
   write(receivedFile, fileContents, bytesReceived);
