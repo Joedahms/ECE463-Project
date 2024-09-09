@@ -6,12 +6,22 @@
 #include <netdb.h>
 #include <stdint.h>
 
+typedef struct {
+  char* delimiter;
+  char* messageBegin;
+  char* messageEnd;
+  char* putCommand;
+  char* getCommand;
+}packetFields;
+
 int networkNodeConnect(const char*, int, struct addrinfo*);
 
-void receiveFile(int, uint8_t);
+char* packetAppend(char*, const char*, const char*);
+
+int receivePacket(int, char*, int, packetFields, uint8_t);
 int receiveBytes(int, char*, int, uint8_t);
 
-void sendFile(const char*, int, uint8_t);
+void sendPacket(const char*, int, packetFields, char* command, uint8_t);
 int sendBytes(int, const char*, unsigned long int, uint8_t);
 
 #endif
