@@ -1,3 +1,5 @@
+#define FILE_NAME_SIZE 50
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -13,7 +15,7 @@
 #include "server.h"
 
 // Global flags
-uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
+uint8_t debugFlag = 0;  // Can add conditional statements with this flag to print out extra info
 
 // Global variables (for signal handler)
 struct addrinfo* serverAddressInfo;
@@ -26,6 +28,14 @@ void shutdownServer(int);
 // Main fucntion
 int main(int argc, char* argv[]) {
   signal(SIGINT, shutdownServer);
+
+  packetFields serverPacketFields;
+  serverPacketFields.delimiter = "delimFlag";
+  serverPacketFields.messageBegin = "messageBegin";
+  serverPacketFields.messageEnd = "messageEnd";
+  serverPacketFields.putCommand = "put";
+  serverPacketFields.getCommand = "get";
+
 
   // Check how many command line areguements passed
 	switch (argc) {
@@ -49,6 +59,7 @@ int main(int argc, char* argv[]) {
 	hints.ai_protocol = 0;            // Any protocol
 	hints.ai_flags = AI_PASSIVE;      // If node is null, will bind to IP of host
 	
+  // Port 3940
 	int getaddrinfoReturnValue;
 	getaddrinfoReturnValue = getaddrinfo(NULL, "3940", &hints, &serverAddressInfo);
 	if (getaddrinfoReturnValue != 0) {
@@ -56,15 +67,17 @@ int main(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
   
+  // Set up socket
   printf("Setting up socket...\n");
   socketDescriptor = socket(serverAddressInfo->ai_family, serverAddressInfo->ai_socktype, 0);
-  fcntl(socketDescriptor, F_SETFD, O_NONBLOCK);
   printf("Socket set up\n");
 
+  // Bind socket
   printf("Binding socket...\n");
   bind(socketDescriptor, serverAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
   printf("Socket bound\n");
 	
+  // Listen
   listen(socketDescriptor, 10);		// Limit queued connections to 10
   printf("Listening...\n");
 
@@ -72,44 +85,22 @@ int main(int argc, char* argv[]) {
   int incomingSocketDescriptor;
   socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
 
-  // Continously listen for new files
+  // Continously listen for new packets
   while (1) {
+    // Accept the incoming connection
     incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
     printf("Connection accepted\n");
     
-    // Receive the command
-    printf("Receiving command...\n");
-    int commandSize = 0;
-    char* commandBuffer = malloc(4);
-    commandSize = receiveBytes(incomingSocketDescriptor, commandBuffer, 3, debugFlag);
-    printf("Received %d byte command of type %s\n", commandSize, commandBuffer);
-
-    // Receive a file
-    if (strcmp("put", commandBuffer) == 0) {
-      receiveFile(incomingSocketDescriptor, debugFlag);
-      close(incomingSocketDescriptor);
-      printf("Connection terminated\n");
+    // Process incoming data
+    char* incomingFileName = malloc(FILE_NAME_SIZE);      // Space for file name
+    fcntl(incomingSocketDescriptor, F_SETFL, O_NONBLOCK); // Set socket to non blocking (will return if no data available)
+    if (receivePacket(incomingSocketDescriptor, incomingFileName, FILE_NAME_SIZE, serverPacketFields, debugFlag) == 0) {    // If the packet contains get command
+      sendPacket(incomingFileName, incomingSocketDescriptor, serverPacketFields, serverPacketFields.putCommand, debugFlag); // Send back the requested file
     }
 
-    // Send a file
-    else if (strcmp("get", commandBuffer) == 0) {
-      char* requestedFileName = malloc(20);
-      int fileNameBytesReceived;
-      fileNameBytesReceived = receiveBytes(incomingSocketDescriptor, requestedFileName, 20, debugFlag);
-      printf("%d byte filename received: %s\n", fileNameBytesReceived, requestedFileName);
-
-      sendFile(requestedFileName, incomingSocketDescriptor, debugFlag);
-      close(incomingSocketDescriptor);
-      printf("Connection terminated\n");
-    }
-
-    // Invalid command
-    else {
-
-    }
-    
+    close(incomingSocketDescriptor);
+    printf("Connection terminated\n");
   }
-	
   return 0;
 }
 
