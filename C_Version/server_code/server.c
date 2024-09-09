@@ -27,6 +27,13 @@ void shutdownServer(int);
 int main(int argc, char* argv[]) {
   signal(SIGINT, shutdownServer);
 
+  packetFields serverPacketFields;
+  serverPacketFields.delimiter = "delimFlag";
+  serverPacketFields.messageBegin = "messageBegin";
+  serverPacketFields.messageEnd = "messageEnd";
+  serverPacketFields.sendCommand = "sendCommand";
+
+
   // Check how many command line areguements passed
 	switch (argc) {
 		case 1:
@@ -76,7 +83,9 @@ int main(int argc, char* argv[]) {
   while (1) {
     incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
     printf("Connection accepted\n");
+    receiveFile(incomingSocketDescriptor, debugFlag);
     
+    /*
     // Receive the command
     printf("Receiving command...\n");
     int commandSize = 0;
@@ -98,7 +107,7 @@ int main(int argc, char* argv[]) {
       fileNameBytesReceived = receiveBytes(incomingSocketDescriptor, requestedFileName, 20, debugFlag);
       printf("%d byte filename received: %s\n", fileNameBytesReceived, requestedFileName);
 
-      sendFile(requestedFileName, incomingSocketDescriptor, debugFlag);
+//      sendFile(requestedFileName, incomingSocketDescriptor, debugFlag);
       close(incomingSocketDescriptor);
       printf("Connection terminated\n");
     }
@@ -107,6 +116,7 @@ int main(int argc, char* argv[]) {
     else {
 
     }
+    */
     
   }
 	

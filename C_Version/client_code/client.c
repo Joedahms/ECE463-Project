@@ -30,6 +30,12 @@ void shutdownClient(int);
 int main(int argc, char* argv[]) {
   signal(SIGINT, shutdownClient);
 
+  packetFields clientPacketFields;
+  clientPacketFields.delimiter = "delimFlag";
+  clientPacketFields.messageBegin = "messageBegin";
+  clientPacketFields.messageEnd = "messageEnd";
+  clientPacketFields.sendCommand = "put";
+
 	switch (argc) {					// Check how many command line arguments are passed
 		case 1:
 			printf("Running client in normal mode\n");
@@ -73,14 +79,16 @@ int main(int argc, char* argv[]) {
       const char* nodeName = "server";
       socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
 
+      /*
       // Send put command
       printf("Sending put command...\n");
       char* command = "put";
       sendBytes(socketDescriptor, command, strlen(command), debugFlag);
       printf("Put command sent\n");
+*/
 
       // Send file and create new socket
-      sendFile(&userInput[4], socketDescriptor, debugFlag);  
+      sendFile(&userInput[4], socketDescriptor, clientPacketFields, debugFlag);  
       close(socketDescriptor);                                                                    // Close current connection
       socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
@@ -89,6 +97,7 @@ int main(int argc, char* argv[]) {
       const char* nodeName = "server";
       socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
       
+      /*
       // Send get command
       printf("Sending get command...\n");
       char* command = "get";
@@ -98,6 +107,7 @@ int main(int argc, char* argv[]) {
       printf("Sending file name\n");
       sendBytes(socketDescriptor, &userInput[4], strlen(userInput), debugFlag);
       printf("File name sent\n");
+*/
 
       // Receive file and create new socket
       receiveFile(socketDescriptor, debugFlag);

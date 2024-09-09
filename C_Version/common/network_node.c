@@ -1,3 +1,5 @@
+#define MAX_PACKET_LENGTH 1500
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +10,7 @@
 #include <errno.h>
 
 #include "network_node.h"
+
 
 int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrinfo* destinationAddressInfo) {
   printf("Connecting to %s...\n", nodeName);
@@ -24,6 +27,13 @@ int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrin
   return socketDescriptor;
 }
 
+char* packetAppend(char* destinationPacket, const char* sourceInformation, const char* informationName) {
+  size_t sourceInformationLength = strlen(sourceInformation);
+  destinationPacket = strncat(destinationPacket, sourceInformation, sourceInformationLength); // Add beginning of message
+  printf("Added %zd byte %s to packet\n", sourceInformationLength, informationName);
+  return destinationPacket;
+}
+
 /*
  * Name: sendFile
  * Purpose: Send a file along with its name to a waiting server
@@ -32,18 +42,31 @@ int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrin
  * - Socket Descriptor of the socket to send the file out on
  * Output: None
  */
-void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
-  // Send the file name
-  int fileNameLength = strlen(fileName);
-  printf("Sending file: %s\n", fileName);
-  printf("Sending %d byte filename: %s...\n", fileNameLength, fileName);
-  int bytesSent = 0;
-  bytesSent = sendBytes(socketDescriptor, fileName, fileNameLength, debugFlag);
-  printf("Sent %d bytes\n", bytesSent);
+void sendFile(const char* fileName, int socketDescriptor, packetFields senderPacketFields, uint8_t debugFlag) {
+  // Begin building the packet
+  char* filePacket = malloc(MAX_PACKET_LENGTH);
+  printf("Allocated %d byte packet\n", MAX_PACKET_LENGTH);
+  
+  // Add beginning to message to packet
+  filePacket = packetAppend(filePacket, senderPacketFields.messageBegin, "beginning of message");
 
+  // Add send command to packet
+  filePacket = packetAppend(filePacket, senderPacketFields.sendCommand, "send command");
+
+  // Add delimiter to packet
+  filePacket = packetAppend(filePacket, senderPacketFields.delimiter, "delimiter");
+
+  // Add file name to packet
+  filePacket = packetAppend(filePacket, fileName, "file name");
+  
+  // Add delimiter to packet
+  filePacket = packetAppend(filePacket, senderPacketFields.delimiter, "delimiter");
+
+  // Add file contents to packet
+  printf("Adding contents of %s to packet\n", fileName);
   // Open the file
   int fileDescriptor;
-  printf("Opening file...\n");
+  printf("Opening file %s...\n", fileName);
   fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
   if (fileDescriptor == -1) {
     char* errorMessage = malloc(1024);
@@ -51,7 +74,7 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
     printf("Failed to open file \"%s\" with error %s\n", fileName, errorMessage);
     exit(1);
   }
-  printf("File Open\n");
+  printf("File %s opened\n", fileName);
 
   // Get the size of the file in bytes
   struct stat fileInformation;
@@ -62,11 +85,11 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
   unsigned long int fileSize = fileInformation.st_size;
   printf("%s is %ld bytes\n", fileName, fileSize);
 
-  // Read the contents of the file into the file buffer
-  char* fileBuffer = malloc(100000);
+  // Read the contents of the file into file contents
+  char* fileContents = malloc(100000);
   printf("Reading file into buffer...\n");
   ssize_t bytesReadFromFile = 0;
-  bytesReadFromFile = read(fileDescriptor, fileBuffer, fileSize);
+  bytesReadFromFile = read(fileDescriptor, fileContents , fileSize);
   if (bytesReadFromFile == -1) {            // read failed()
     char* errorMessage = malloc(1024);
     strcpy(errorMessage, strerror(errno));
@@ -76,11 +99,20 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
   else {
     printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
   }
+  
+  // Add file contents to packet
+  filePacket = packetAppend(filePacket, fileContents, "file contents");
 
-  // Send the contents of the file
-  printf("Sending file contents...\n");
-  bytesSent = sendBytes(socketDescriptor, fileBuffer, fileSize, debugFlag);
-  printf("%d bytes of file contents sent\n", bytesSent);
+  // Add message end to packet
+  filePacket = packetAppend(filePacket, senderPacketFields.messageEnd, "message end");
+  
+  // Print out the packet that is going to be sent
+  printf("%zd byte packet to be sent: %s\n", strlen(filePacket), filePacket);
+
+  // Send the packet
+  printf("Sending packet...\n");
+  int bytesSent = sendBytes(socketDescriptor, filePacket, strlen(filePacket), debugFlag);
+  printf("%d byte packet sent\n", bytesSent);
 }
 
 /*
@@ -151,7 +183,21 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
  * Output: None
  */
 void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
+  // Receive file
   printf("Receiving File...\n");
+  char* incomingPacket = malloc(MAX_PACKET_LENGTH);
+  int bytesReceived = 0;
+  int totalBytesReceived = 0;
+  while (bytesReceived = recv(incomingSocketDescriptor, incomingPacket, MAX_PACKET_LENGTH, 0)) {
+    totalBytesReceived += bytesReceived;
+  }
+  printf("%d byte packet received:\n%s\n", totalBytesReceived, incomingPacket);
+
+  // Parse incomingPacket
+
+
+
+  /*
 
   int bytesReceived;
   int i;
@@ -178,6 +224,7 @@ void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
   write(receivedFile, fileContents, bytesReceived);
   printf("Received file written\n");
 
+  */
   printf("File received\n");
 }
 
