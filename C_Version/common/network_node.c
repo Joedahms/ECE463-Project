@@ -1,4 +1,4 @@
-#define MAX_PACKET_LENGTH 1500
+#define MAX_PACKET_LENGTH 1500  // Upper limit on packet size (bytes)
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -11,7 +11,16 @@
 
 #include "network_node.h"
 
-
+/*
+ * Name: networkNodeConnect
+ * Purpose: Connect to another socket
+ * Input: 
+ * - Name of the node to connect to
+ * - Socket on calling node process
+ * - addrinfo structure containing information about node to connect to
+ * Output: 
+ * - Connected socket descriptor
+ */
 int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrinfo* destinationAddressInfo) {
   printf("Connecting to %s...\n", nodeName);
   int connectionStatus;
@@ -27,6 +36,15 @@ int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrin
   return socketDescriptor;
 }
 
+/* 
+ * Name: packetAppend
+ * Purpose: Append a string to a packet and print confirmation
+ * Input:
+ * - Packet to append string to
+ * - String to append to packet
+ * - What is being added to the packet
+ * Output: Packet with the new string appended to it
+ */
 char* packetAppend(char* destinationPacket, const char* sourceInformation, const char* informationName) {
   size_t sourceInformationLength = strlen(sourceInformation);
   destinationPacket = strncat(destinationPacket, sourceInformation, sourceInformationLength); // Add beginning of message
@@ -35,83 +53,106 @@ char* packetAppend(char* destinationPacket, const char* sourceInformation, const
 }
 
 /*
- * Name: sendFile
- * Purpose: Send a file along with its name to a waiting server
+ * Name: sendPacket
+ * Purpose: Send a packet
  * Input: 
- * - The name of the file to send
+ * - The file name to send
  * - Socket Descriptor of the socket to send the file out on
+ * - Structure containing packet packet fields
+ * - Which command to send (put or get)
+ * - debug flag
  * Output: None
  */
-void sendFile(const char* fileName, int socketDescriptor, packetFields senderPacketFields, uint8_t debugFlag) {
-  // Begin building the packet
-  char* filePacket = malloc(MAX_PACKET_LENGTH);
+void sendPacket(const char* fileName, int socketDescriptor, packetFields senderPacketFields, char* command, uint8_t debugFlag) {
+  char* packet = malloc(MAX_PACKET_LENGTH);             // Allocate memory for packet
   printf("Allocated %d byte packet\n", MAX_PACKET_LENGTH);
   
-  // Add beginning to message to packet
-  filePacket = packetAppend(filePacket, senderPacketFields.messageBegin, "beginning of message");
+  // Add beginning of message to packet
+  packet = packetAppend(packet, senderPacketFields.messageBegin, "beginning of message");
 
-  // Add send command to packet
-  filePacket = packetAppend(filePacket, senderPacketFields.sendCommand, "send command");
-
-  // Add delimiter to packet
-  filePacket = packetAppend(filePacket, senderPacketFields.delimiter, "delimiter");
-
-  // Add file name to packet
-  filePacket = packetAppend(filePacket, fileName, "file name");
-  
-  // Add delimiter to packet
-  filePacket = packetAppend(filePacket, senderPacketFields.delimiter, "delimiter");
-
-  // Add file contents to packet
-  printf("Adding contents of %s to packet\n", fileName);
-  // Open the file
-  int fileDescriptor;
-  printf("Opening file %s...\n", fileName);
-  fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
-  if (fileDescriptor == -1) {
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Failed to open file \"%s\" with error %s\n", fileName, errorMessage);
-    exit(1);
+  // Add command to packet
+  uint8_t putCommandFlag = 0;
+  // put
+  if (strcmp(senderPacketFields.putCommand, command) == 0) {
+    putCommandFlag = 1;
+    packet = packetAppend(packet, senderPacketFields.putCommand, "put command");
   }
-  printf("File %s opened\n", fileName);
-
-  // Get the size of the file in bytes
-  struct stat fileInformation;
-  if (stat(fileName, &fileInformation) == -1) {
-    printf("Stat Error\n");
-    exit(1);
-  };
-  unsigned long int fileSize = fileInformation.st_size;
-  printf("%s is %ld bytes\n", fileName, fileSize);
-
-  // Read the contents of the file into file contents
-  char* fileContents = malloc(100000);
-  printf("Reading file into buffer...\n");
-  ssize_t bytesReadFromFile = 0;
-  bytesReadFromFile = read(fileDescriptor, fileContents , fileSize);
-  if (bytesReadFromFile == -1) {            // read failed()
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Failed to read file \"%s\" with error %s\n", fileName, errorMessage);
-    exit(1);
+  // get
+  else if (strcmp(senderPacketFields.getCommand, command) == 0) {
+    packet = packetAppend(packet, senderPacketFields.getCommand, "get command");
   }
   else {
-    printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
+    printf("Invalid command passed to sendPacket()\n"); 
+    exit(1);
   }
+
+  // Add delimiter to packet
+  packet = packetAppend(packet, senderPacketFields.delimiter, "delimiter");
+
+  // Add file name to packet
+  packet = packetAppend(packet, fileName, "file name");
   
-  // Add file contents to packet
-  filePacket = packetAppend(filePacket, fileContents, "file contents");
+  // Add delimiter to packet
+  packet = packetAppend(packet, senderPacketFields.delimiter, "delimiter");
+
+  // If file contents are to be sent
+  if (putCommandFlag) {
+    // Add file contents to packet
+    printf("Adding contents of %s to packet\n", fileName);
+    // Open the file
+    int fileDescriptor;
+    printf("Opening file %s...\n", fileName);
+    fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
+    if (fileDescriptor == -1) {
+      char* errorMessage = malloc(1024);
+      strcpy(errorMessage, strerror(errno));
+      printf("Failed to open file \"%s\" with error %s\n", fileName, errorMessage);
+      exit(1);
+    }
+    printf("File %s opened\n", fileName);
+
+    // Get the size of the file in bytes
+    struct stat fileInformation;
+    if (stat(fileName, &fileInformation) == -1) {
+      printf("Stat Error\n");
+      exit(1);
+    };
+    unsigned long int fileSize = fileInformation.st_size;
+    printf("%s is %ld bytes\n", fileName, fileSize);
+
+    // Read out the contents of the file
+    char* fileContents = malloc(100000);
+    printf("Reading file...\n");
+    ssize_t bytesReadFromFile = 0;
+    bytesReadFromFile = read(fileDescriptor, fileContents , fileSize);
+    if (bytesReadFromFile == -1) {            // read failed()
+      char* errorMessage = malloc(1024);
+      strcpy(errorMessage, strerror(errno));
+      printf("Failed to read file \"%s\" with error %s\n", fileName, errorMessage);
+      exit(1);
+    }
+    else {
+      printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
+    }
+    
+    // Add file contents to packet
+    packet = packetAppend(packet, fileContents, "file contents");
+  }
+  // get
+  else {
+    char* dummyFileContents = malloc(1);  // No contents sent with a get command
+    packet = packetAppend(packet, dummyFileContents, "dummy file contents");
+  }
 
   // Add message end to packet
-  filePacket = packetAppend(filePacket, senderPacketFields.messageEnd, "message end");
+  packet = packetAppend(packet, senderPacketFields.messageEnd, "message end");
   
   // Print out the packet that is going to be sent
-  printf("%zd byte packet to be sent: %s\n", strlen(filePacket), filePacket);
+  printf("%zd byte packet to be sent: %s\n", strlen(packet), packet);
 
   // Send the packet
   printf("Sending packet...\n");
-  int bytesSent = sendBytes(socketDescriptor, filePacket, strlen(filePacket), debugFlag);
+  int bytesSent = sendBytes(socketDescriptor, packet, strlen(packet), debugFlag);
   printf("%d byte packet sent\n", bytesSent);
 }
 
@@ -122,6 +163,7 @@ void sendFile(const char* fileName, int socketDescriptor, packetFields senderPac
  * - Socket Descriptor of the socket to send the bytes with
  * - Buffer containing the bytes to send
  * - Amount of bytes to send
+ * - Debug flag
  * Output: Number of bytes sent
  * Notes: need to change variable names to be more ambiguous
  */
@@ -182,96 +224,113 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
  * Input: Socket Descriptor of the accepted transmission
  * Output: None
  */
-void receiveFile(int incomingSocketDescriptor, packetFields receiverPacketFields, uint8_t debugFlag) {
-  // Receive file
-  printf("Receiving File...\n");
-  char* incomingPacket = malloc(MAX_PACKET_LENGTH);
-  int bytesReceived = 0;
+int receivePacket(int incomingSocketDescriptor, char* fileName, int fileNameSize, packetFields receiverPacketFields, uint8_t debugFlag) {
+  printf("Receiving Packet...\n");
+  char* incomingPacket = malloc(MAX_PACKET_LENGTH); // Allocate space for incoming packet
   int totalBytesReceived = 0;
-  while (bytesReceived = recv(incomingSocketDescriptor, incomingPacket, MAX_PACKET_LENGTH, 0)) {
-    totalBytesReceived += bytesReceived;
+  while (totalBytesReceived = recv(incomingSocketDescriptor, incomingPacket, MAX_PACKET_LENGTH, 0)) { // Constantly check the socket for data
+    if (debugFlag) {
+      printf("%d\n", totalBytesReceived);
+    }
+    if (totalBytesReceived != -1) { // Something was actually received
+      break;
+    }
   }
   printf("%d byte packet received:\n%s\n", totalBytesReceived, incomingPacket);
 
   printf("Parsing packet...\n");
-  // Parse incomingPacket
+
   // Look for beginning of message
   printf("Checking for beginning of message...\n");
   if (strstr(incomingPacket, receiverPacketFields.messageBegin)) {  // Check if beginning exists
     printf("Beginning of message found\n"); 
     incomingPacket += strlen(receiverPacketFields.messageBegin);    // Advance to after beginning
   }
-  else {
+  else {  // Beginning of messsage not found
     printf("Invalid packet: Beginning of message not found\n");
-    return;
+    return 10; // change
   }
 
   // Check command
+  uint8_t getFlag = 0;  // Whether or not get has been received
   printf("Checking command...\n");
-  int i;
-  int command_size = 3;
-  char* command = malloc(command_size);
-  command = strncpy(command, incomingPacket, command_size);
-  if (strcmp(command, "put") == 0) {
+  int commandSize = 3;  // Both commands are 3 bytes
+  char* incomingCommand = malloc(commandSize);
+  incomingCommand = strncpy(incomingCommand, incomingPacket, commandSize);  // Read the command off the packet
+  // put
+  if (strcmp(incomingCommand, "put") == 0) {  
     printf("Command found: put\n");
+    // Care about file contents
   }
-  else if (strcmp(command, "get") == 0) {
+  // get
+  else if (strcmp(incomingCommand, "get") == 0) {
     printf("Command found: get\n");
+    getFlag = 1;  // Dont care about the file contents
   }
+  // invalid
   else {
-    printf("Invalid command entered");
-    return;
+    printf("Invalid command received\n");
+    return 10; // change
   }
 
   // Need to improve This
-  // Assuming all is well and skipping to file name
+  // Assuming all is well and skipping delimiter to file name
   incomingPacket += 12;
 
   // Find file name
   printf("Checking file name...\n");
-  char* fileName = malloc(50);
+  char* incomingFileName = malloc(fileNameSize);
   char* nextPacketChar = malloc(1);   // So can use strcat()
-  while (strstr(fileName, receiverPacketFields.delimiter) == NULL) {  // while delimiter not found
+  while (strstr(incomingFileName, receiverPacketFields.delimiter) == NULL) {  // while delimiter not found
     if (*incomingPacket == '\0') {    // Got to end of packet before delimiter was found
       printf("filename error\n");
-      return;
+      return 10; // change
     }
     // Add next packet character to file name
     nextPacketChar[0] = *incomingPacket;
-    fileName = strcat(fileName, nextPacketChar); 
+    incomingFileName = strcat(incomingFileName, nextPacketChar); 
     incomingPacket++;
   }
-  fileName[strlen(fileName) - 9] = '\0';  // Remove delimiter from file name
-  printf("File name:\n%s\n", fileName);
-  
-  // Find file contents
-  printf("Checking file contents...\n");
-  char* fileContents = malloc(10000);
-  while (strstr(fileName, receiverPacketFields.messageEnd) == NULL) {
-    if (*incomingPacket == '\0') {
-      //printf("file contetents error\n");
-    nextPacketChar[0] = *incomingPacket;
-    fileContents = strcat(fileContents, nextPacketChar); 
-      break;
-      return;
-    }
-    nextPacketChar[0] = *incomingPacket;
-    fileContents = strcat(fileContents, nextPacketChar); 
-    incomingPacket++;
-  }
-  for (i = 0; i < 10; i++) {
-    fileContents[strlen(fileContents) - 1] = '\0';
-  }
-  printf("File contents:\n%s\n", fileContents);
+  incomingFileName[strlen(incomingFileName) - 9] = '\0';  // Remove delimiter from file name
+  printf("File name:\n%s\n", incomingFileName);
 
-  // Open and write to the new file
-  int receivedFile;
-  printf("Opening received file...\n");
-  receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
-  printf("Received file opened\n");
-  printf("Writing received file...\n");
-  write(receivedFile, fileContents, totalBytesReceived);
-  printf("Received file written\n");
+  // get
+  if (getFlag) {  // Dont care about file contents, just return
+    strcpy(fileName, incomingFileName);
+    return 0;
+  }
+  // put
+  else {  // Care about file contents, extract them
+    // Find file contents
+    printf("Checking file contents...\n");
+    char* incomingFileContents = malloc(10000);
+    while (strstr(incomingFileName, receiverPacketFields.messageEnd) == NULL) { // While end of message has not been encountered
+      if (*incomingPacket == '\0') {  // At the end of the packet
+        nextPacketChar[0] = *incomingPacket;
+        incomingFileContents = strcat(incomingFileContents, nextPacketChar); 
+        break;
+      }
+      // Not at the end of the packet
+      nextPacketChar[0] = *incomingPacket;
+      incomingFileContents = strcat(incomingFileContents, nextPacketChar);  // Add the next character in the packet to the file contents
+      incomingPacket++;
+    }
+    int i;
+    for (i = 0; i < 10; i++) {
+      incomingFileContents[strlen(incomingFileContents) - 1] = '\0';
+    }
+    printf("File contents:\n%s\n", incomingFileContents);
+
+    // Open and write to the new file
+    int receivedFile;
+    printf("Opening received file...\n");
+    receivedFile = open(incomingFileName, (O_CREAT | O_RDWR), S_IRWXU);
+    printf("Received file opened\n");
+    printf("Writing received file...\n");
+    write(receivedFile, incomingFileContents, totalBytesReceived);
+    printf("Received file written\n");
+  }
+  return 1;
 }
 
 

@@ -1,4 +1,5 @@
 #define USER_INPUT_BUFFER_LENGTH 40
+#define FILE_NAME_SIZE 50
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -30,31 +31,31 @@ void shutdownClient(int);
 int main(int argc, char* argv[]) {
   signal(SIGINT, shutdownClient);
 
+  // Set packet fields
   packetFields clientPacketFields;
   clientPacketFields.delimiter = "delimFlag";
   clientPacketFields.messageBegin = "messageBegin";
   clientPacketFields.messageEnd = "messageEnd";
-  clientPacketFields.sendCommand = "put";
+  clientPacketFields.putCommand = "put";
+  clientPacketFields.getCommand = "get";
 
-	switch (argc) {					// Check how many command line arguments are passed
+	switch (argc) { // Check how many command line arguments are passed
 		case 1:
 			printf("Running client in normal mode\n");
 			break;
 		case 2:
-			if (strcmp(argv[1], "-d") == 0) {	// Check if debug flag
+			if (strcmp(argv[1], "-d") == 0) { // Check if debug flag
 				debugFlag = 1;
 				printf("%s\n", "Running client in debug mode");
 			}
 			else {
-				printf("Invalid usage of client");	// Could make this printout better
+				printf("Invalid usage of client");  // Could make this printout better
 			}
 			break;
     default:
-			printf("Invalid usage of client");	// Could make this printout better
+			printf("Invalid usage of client");  // Could make this printout better
 	}
 	
-	char* fileName = malloc(20);
-
 	int status;
 	struct addrinfo hints;
 
@@ -76,49 +77,34 @@ int main(int argc, char* argv[]) {
 
     // put
 		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
+      // Connect to server
       const char* nodeName = "server";
       socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
 
-      /*
-      // Send put command
-      printf("Sending put command...\n");
-      char* command = "put";
-      sendBytes(socketDescriptor, command, strlen(command), debugFlag);
-      printf("Put command sent\n");
-*/
-
-      // Send file and create new socket
-      sendFile(&userInput[4], socketDescriptor, clientPacketFields, debugFlag);  
+      // Send file
+      sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.putCommand, debugFlag);  
       close(socketDescriptor);                                                                    // Close current connection
       socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
     // get
 		else if (userInput[0] == 'g' && userInput[1] == 'e' && userInput[2] == 't') {
+      // Connect to server
       const char* nodeName = "server";
       socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
+     
+      // Send get command and receive file
+      sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.getCommand, debugFlag);  // Send get command packet
+      char* incomingFileName = malloc(FILE_NAME_SIZE);  // Space for file name
+      fcntl(socketDescriptor, F_SETFL, O_NONBLOCK);     // Set socket to non blocking (don't wait on data)
+      receivePacket(socketDescriptor, incomingFileName, FILE_NAME_SIZE, clientPacketFields, debugFlag); // Receive file packet
+      close(socketDescriptor);                                                                          // Close current connection
+      socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);       // New socket descriptor for next connection
       
-      /*
-      // Send get command
-      printf("Sending get command...\n");
-      char* command = "get";
-      sendBytes(socketDescriptor, command, strlen(command), debugFlag);
-      printf("Get command sent\n");
-
-      printf("Sending file name\n");
-      sendBytes(socketDescriptor, &userInput[4], strlen(userInput), debugFlag);
-      printf("File name sent\n");
-*/
-
-      // Receive file and create new socket
-      receiveFile(socketDescriptor, clientPacketFields, debugFlag);
-      close(socketDescriptor);                                                                    // Close current connection
-      socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
     else {
       // Enter valid command (put/get)
     }
 	}
-	
 	return 0;
 }
 
