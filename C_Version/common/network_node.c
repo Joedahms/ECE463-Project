@@ -4,18 +4,22 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
 
+#include <sys/socket.h>
 #include "network_node.h"
 
-int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrinfo* destinationAddressInfo) {
+int networkNodeConnect(const char *nodeName, int socketDescriptor, struct addrinfo *destinationAddressInfo)
+{
   printf("Connecting to %s...\n", nodeName);
   int connectionStatus;
   connectionStatus = connect(socketDescriptor, destinationAddressInfo->ai_addr, destinationAddressInfo->ai_addrlen);
   // Check if connection was successful
-  if (connectionStatus != 0) {
-    char* errorMessage = malloc(1024);
+  if (connectionStatus != 0)
+  {
+    char *errorMessage = malloc(1024);
     strcpy(errorMessage, strerror(errno));
     printf("Connection to %s failed with error %s\n", nodeName, errorMessage);
     exit(1);
@@ -27,12 +31,13 @@ int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrin
 /*
  * Name: sendFile
  * Purpose: Send a file along with its name to a waiting server
- * Input: 
+ * Input:
  * - The name of the file to send
  * - Socket Descriptor of the socket to send the file out on
  * Output: None
  */
-void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
+void sendFile(const char *fileName, int socketDescriptor, uint8_t debugFlag)
+{
   // Send the file name
   int fileNameLength = strlen(fileName);
   printf("Sending file: %s\n", fileName);
@@ -44,9 +49,10 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
   // Open the file
   int fileDescriptor;
   printf("Opening file...\n");
-  fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
-  if (fileDescriptor == -1) {
-    char* errorMessage = malloc(1024);
+  fileDescriptor = open(fileName, O_CREAT, O_RDWR); // Create if does not exist + read and write mode
+  if (fileDescriptor == -1)
+  {
+    char *errorMessage = malloc(1024);
     strcpy(errorMessage, strerror(errno));
     printf("Failed to open file \"%s\" with error %s\n", fileName, errorMessage);
     exit(1);
@@ -55,7 +61,8 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
 
   // Get the size of the file in bytes
   struct stat fileInformation;
-  if (stat(fileName, &fileInformation) == -1) {
+  if (stat(fileName, &fileInformation) == -1)
+  {
     printf("Stat Error\n");
     exit(1);
   };
@@ -63,17 +70,19 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
   printf("%s is %ld bytes\n", fileName, fileSize);
 
   // Read the contents of the file into the file buffer
-  char* fileBuffer = malloc(100000);
+  char *fileBuffer = malloc(100000);
   printf("Reading file into buffer...\n");
   ssize_t bytesReadFromFile = 0;
   bytesReadFromFile = read(fileDescriptor, fileBuffer, fileSize);
-  if (bytesReadFromFile == -1) {            // read failed()
-    char* errorMessage = malloc(1024);
+  if (bytesReadFromFile == -1)
+  { // read failed()
+    char *errorMessage = malloc(1024);
     strcpy(errorMessage, strerror(errno));
     printf("Failed to read file \"%s\" with error %s\n", fileName, errorMessage);
     exit(1);
   }
-  else {
+  else
+  {
     printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
   }
 
@@ -93,12 +102,15 @@ void sendFile(const char* fileName, int socketDescriptor, uint8_t debugFlag) {
  * Output: Number of bytes sent
  * Notes: need to change variable names to be more ambiguous
  */
-int sendBytes(int socketDescriptor, const char* buffer, unsigned long int bufferSize, uint8_t debugFlag) {
-  if (debugFlag) {
+int sendBytes(int socketDescriptor, const char *buffer, unsigned long int bufferSize, uint8_t debugFlag)
+{
+  if (debugFlag)
+  {
     // Print the bytes to send
     printf("Bytes to be sent:\n\n");
     int i;
-    for (i = 0; i < bufferSize; i++) {
+    for (i = 0; i < bufferSize; i++)
+    {
       printf("%c", buffer[i]);
     }
     printf("\n \n");
@@ -106,13 +118,15 @@ int sendBytes(int socketDescriptor, const char* buffer, unsigned long int buffer
 
   int bytesSent = 0;
   bytesSent = send(socketDescriptor, buffer, bufferSize, 0);
-  if (bytesSent == -1) {  
-    char* errorMessage = malloc(1024);
+  if (bytesSent == -1)
+  {
+    char *errorMessage = malloc(1024);
     strcpy(errorMessage, strerror(errno));
     printf("Byte send failed with error %s\n", errorMessage);
     exit(1);
   }
-  else {
+  else
+  {
     return bytesSent;
   }
 }
@@ -121,21 +135,24 @@ int sendBytes(int socketDescriptor, const char* buffer, unsigned long int buffer
  * Name: receiveMessage
  * Purpose: This function is for receiving a set number of bytes into
  * a buffer
- * Input: 
+ * Input:
  * - Socket Descriptor of the accepted transmission
  * - Buffer to put the received data into
  * - The size of the message to receive in bytes
- * Output: 
+ * Output:
  * - The number of bytes received into the buffer
  */
-int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uint8_t debugFlag) {
+int receiveBytes(int incomingSocketDescriptor, char *buffer, int bufferSize, uint8_t debugFlag)
+{
   int numberOfBytesReceived = 0;
   numberOfBytesReceived = recv(incomingSocketDescriptor, buffer, bufferSize, 0);
-  if (debugFlag) {
+  if (debugFlag)
+  {
     // Print out incoming message
     int i;
     printf("Bytes received: \n");
-    for (i = 0; i < numberOfBytesReceived; i++) {
+    for (i = 0; i < numberOfBytesReceived; i++)
+    {
       printf("%c", buffer[i]);
     }
     printf("\n");
@@ -150,7 +167,8 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
  * Input: Socket Descriptor of the accepted transmission
  * Output: None
  */
-void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
+void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag)
+{
   printf("Receiving File...\n");
 
   int bytesReceived;
@@ -158,14 +176,13 @@ void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
 
   // Receive file name
   printf("Receiving file name...\n");
-  char* receivedFileName = malloc(20);
+  char *receivedFileName = malloc(20);
   bytesReceived = receiveBytes(incomingSocketDescriptor, receivedFileName, 20, debugFlag);
   printf("%d byte filename received: %s\n", bytesReceived, receivedFileName);
-  
 
   // Receive file contents
   printf("Receiving file contents...\n");
-  char* fileContents = malloc(1000);
+  char *fileContents = malloc(1000);
   bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000, debugFlag);
   printf("Received %d bytes of file content\n", bytesReceived);
 
@@ -180,5 +197,3 @@ void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
 
   printf("File received\n");
 }
-
-

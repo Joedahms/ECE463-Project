@@ -20,7 +20,7 @@ def put_file(filename: str) -> None:
     None: The function does not return any value.
     """
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect(('127.0.0.1', 9999))
+    client.connect(('3.139.61.201', 9999))
     client.send(f'put {filename}'.encode())
 
     with open(filename, 'rb') as f:
