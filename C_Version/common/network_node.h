@@ -17,7 +17,7 @@ int networkNodeConnect(const char*, int, struct addrinfo*);
 
 char* packetAppend(char*, const char*, const char*);
 
-void receiveFile(int, uint8_t);
+void receiveFile(int, packetFields, uint8_t);
 int receiveBytes(int, char*, int, uint8_t);
 
 void sendFile(const char*, int, packetFields, uint8_t);

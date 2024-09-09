@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
   while (1) {
     incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
     printf("Connection accepted\n");
-    receiveFile(incomingSocketDescriptor, debugFlag);
+    receiveFile(incomingSocketDescriptor, serverPacketFields, debugFlag);
     
     /*
     // Receive the command

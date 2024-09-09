@@ -182,7 +182,7 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
  * Input: Socket Descriptor of the accepted transmission
  * Output: None
  */
-void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
+void receiveFile(int incomingSocketDescriptor, packetFields receiverPacketFields, uint8_t debugFlag) {
   // Receive file
   printf("Receiving File...\n");
   char* incomingPacket = malloc(MAX_PACKET_LENGTH);
@@ -193,39 +193,85 @@ void receiveFile(int incomingSocketDescriptor, uint8_t debugFlag) {
   }
   printf("%d byte packet received:\n%s\n", totalBytesReceived, incomingPacket);
 
+  printf("Parsing packet...\n");
   // Parse incomingPacket
+  // Look for beginning of message
+  printf("Checking for beginning of message...\n");
+  if (strstr(incomingPacket, receiverPacketFields.messageBegin)) {  // Check if beginning exists
+    printf("Beginning of message found\n"); 
+    incomingPacket += strlen(receiverPacketFields.messageBegin);    // Advance to after beginning
+  }
+  else {
+    printf("Invalid packet: Beginning of message not found\n");
+    return;
+  }
 
-
-
-  /*
-
-  int bytesReceived;
+  // Check command
+  printf("Checking command...\n");
   int i;
+  int command_size = 3;
+  char* command = malloc(command_size);
+  command = strncpy(command, incomingPacket, command_size);
+  if (strcmp(command, "put") == 0) {
+    printf("Command found: put\n");
+  }
+  else if (strcmp(command, "get") == 0) {
+    printf("Command found: get\n");
+  }
+  else {
+    printf("Invalid command entered");
+    return;
+  }
 
-  // Receive file name
-  printf("Receiving file name...\n");
-  char* receivedFileName = malloc(20);
-  bytesReceived = receiveBytes(incomingSocketDescriptor, receivedFileName, 20, debugFlag);
-  printf("%d byte filename received: %s\n", bytesReceived, receivedFileName);
+  // Need to improve This
+  // Assuming all is well and skipping to file name
+  incomingPacket += 12;
+
+  // Find file name
+  printf("Checking file name...\n");
+  char* fileName = malloc(50);
+  char* nextPacketChar = malloc(1);   // So can use strcat()
+  while (strstr(fileName, receiverPacketFields.delimiter) == NULL) {  // while delimiter not found
+    if (*incomingPacket == '\0') {    // Got to end of packet before delimiter was found
+      printf("filename error\n");
+      return;
+    }
+    // Add next packet character to file name
+    nextPacketChar[0] = *incomingPacket;
+    fileName = strcat(fileName, nextPacketChar); 
+    incomingPacket++;
+  }
+  fileName[strlen(fileName) - 9] = '\0';  // Remove delimiter from file name
+  printf("File name:\n%s\n", fileName);
   
-
-  // Receive file contents
-  printf("Receiving file contents...\n");
-  char* fileContents = malloc(1000);
-  bytesReceived = receiveBytes(incomingSocketDescriptor, fileContents, 1000, debugFlag);
-  printf("Received %d bytes of file content\n", bytesReceived);
+  // Find file contents
+  printf("Checking file contents...\n");
+  char* fileContents = malloc(10000);
+  while (strstr(fileName, receiverPacketFields.messageEnd) == NULL) {
+    if (*incomingPacket == '\0') {
+      //printf("file contetents error\n");
+    nextPacketChar[0] = *incomingPacket;
+    fileContents = strcat(fileContents, nextPacketChar); 
+      break;
+      return;
+    }
+    nextPacketChar[0] = *incomingPacket;
+    fileContents = strcat(fileContents, nextPacketChar); 
+    incomingPacket++;
+  }
+  for (i = 0; i < 10; i++) {
+    fileContents[strlen(fileContents) - 1] = '\0';
+  }
+  printf("File contents:\n%s\n", fileContents);
 
   // Open and write to the new file
   int receivedFile;
   printf("Opening received file...\n");
-  receivedFile = open(receivedFileName, (O_CREAT | O_RDWR), S_IRWXU);
+  receivedFile = open(fileName, (O_CREAT | O_RDWR), S_IRWXU);
   printf("Received file opened\n");
   printf("Writing received file...\n");
-  write(receivedFile, fileContents, bytesReceived);
+  write(receivedFile, fileContents, totalBytesReceived);
   printf("Received file written\n");
-
-  */
-  printf("File received\n");
 }
 
 

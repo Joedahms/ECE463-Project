@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
 */
 
       // Receive file and create new socket
-      receiveFile(socketDescriptor, debugFlag);
+      receiveFile(socketDescriptor, clientPacketFields, debugFlag);
       close(socketDescriptor);                                                                    // Close current connection
       socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
