@@ -79,27 +79,50 @@ int main(int argc, char* argv[]) {
 	
   // Listen
   listen(socketDescriptor, 10);		// Limit queued connections to 10
-  printf("Listening...\n");
 
   struct sockaddr incomingAddress;
   int incomingSocketDescriptor;
   socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
 
+  pid_t processId;
+
   // Continously listen for new packets
   while (1) {
     // Accept the incoming connection
+    printf("Listening for connections...\n");
     incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
     printf("Connection accepted\n");
+    printf("Listening for data...\n");
     
-    // Process incoming data
-    char* incomingFileName = malloc(FILE_NAME_SIZE);      // Space for file name
-    fcntl(incomingSocketDescriptor, F_SETFL, O_NONBLOCK); // Set socket to non blocking (will return if no data available)
-    if (receivePacket(incomingSocketDescriptor, incomingFileName, FILE_NAME_SIZE, serverPacketFields, debugFlag) == 0) {    // If the packet contains get command
-      sendPacket(incomingFileName, incomingSocketDescriptor, serverPacketFields, serverPacketFields.putCommand, debugFlag); // Send back the requested file
-    }
+    if ((processId = fork()) == 0) {
+      close(socketDescriptor); 
+      uint8_t clientAlive = 1;
 
+      // Process incoming data
+//      char* incomingFileName = malloc(FILE_NAME_SIZE);      // Space for file name
+      fcntl(incomingSocketDescriptor, F_SETFL, O_NONBLOCK); // Set socket to non blocking (will return if no data available)
+      int receivePacketReturn;
+
+      while(clientAlive) {
+        char* incomingFileName = malloc(FILE_NAME_SIZE);      // Space for file name
+        receivePacketReturn = receivePacket(incomingSocketDescriptor, incomingFileName, FILE_NAME_SIZE, serverPacketFields, debugFlag);
+        switch (receivePacketReturn) {
+          case 0: // get command
+            sendPacket(incomingFileName, incomingSocketDescriptor, serverPacketFields, serverPacketFields.putCommand, debugFlag); // Send back the requested file
+            break;
+          case 1: // Client connection closed
+            clientAlive = 0;
+            break;
+          default:  // put command or error (need to improve)
+            break;
+        }
+      }
+
+      printf("Connection terminated\n");
+      exit(0);
+    }
     close(incomingSocketDescriptor);
-    printf("Connection terminated\n");
+    printf("here\n");
   }
   return 0;
 }

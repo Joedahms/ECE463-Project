@@ -1,4 +1,4 @@
-#define MAX_PACKET_LENGTH 1500  // Upper limit on packet size (bytes)
+#define MAX_PACKET_LENGTH 5000  // Upper limit on packet size (bytes)
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -225,18 +225,27 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
  * Output: None
  */
 int receivePacket(int incomingSocketDescriptor, char* fileName, int fileNameSize, packetFields receiverPacketFields, uint8_t debugFlag) {
-  printf("Receiving Packet...\n");
   char* incomingPacket = malloc(MAX_PACKET_LENGTH); // Allocate space for incoming packet
   int totalBytesReceived = 0;
   while (totalBytesReceived = recv(incomingSocketDescriptor, incomingPacket, MAX_PACKET_LENGTH, 0)) { // Constantly check the socket for data
     if (debugFlag) {
       printf("%d\n", totalBytesReceived);
     }
-    if (totalBytesReceived != -1) { // Something was actually received
+    if (totalBytesReceived != -1) { // Something was actually received or client closed connection
       break;
     }
   }
-  printf("%d byte packet received:\n%s\n", totalBytesReceived, incomingPacket);
+
+  if (totalBytesReceived == 0) {
+    printf("Client closed connection\n");
+    return 1;
+  }
+  printf("Receiving Packet...\n");
+
+  printf("%d byte packet received:\n", totalBytesReceived);
+  if (debugFlag) {
+    printf("%s\n", incomingPacket);
+  }
 
   printf("Parsing packet...\n");
 
@@ -319,7 +328,9 @@ int receivePacket(int incomingSocketDescriptor, char* fileName, int fileNameSize
     for (i = 0; i < 10; i++) {
       incomingFileContents[strlen(incomingFileContents) - 1] = '\0';
     }
-    printf("File contents:\n%s\n", incomingFileContents);
+    if (debugFlag) {
+      printf("File contents:\n%s\n", incomingFileContents);
+    }
 
     // Open and write to the new file
     int receivedFile;
@@ -330,7 +341,7 @@ int receivePacket(int incomingSocketDescriptor, char* fileName, int fileNameSize
     write(receivedFile, incomingFileContents, totalBytesReceived);
     printf("Received file written\n");
   }
-  return 1;
+  return 11;
 }
 
 

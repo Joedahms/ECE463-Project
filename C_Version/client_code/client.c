@@ -68,6 +68,10 @@ int main(int argc, char* argv[]) {
 
 	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
 
+  // Connect to the server
+  const char* nodeName = "server";
+  socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
+
   // Constantly check user input for a put/get command
   while(1) {
     // Get user input and store in userInput buffer
@@ -77,28 +81,20 @@ int main(int argc, char* argv[]) {
 
     // put
 		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
-      // Connect to server
-      const char* nodeName = "server";
-      socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
-
       // Send file
       sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.putCommand, debugFlag);  
-      close(socketDescriptor);                                                                    // Close current connection
-      socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
+      //close(socketDescriptor);                                                                    // Close current connection
+      //socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
     // get
 		else if (userInput[0] == 'g' && userInput[1] == 'e' && userInput[2] == 't') {
-      // Connect to server
-      const char* nodeName = "server";
-      socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
-     
       // Send get command and receive file
       sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.getCommand, debugFlag);  // Send get command packet
       char* incomingFileName = malloc(FILE_NAME_SIZE);  // Space for file name
       fcntl(socketDescriptor, F_SETFL, O_NONBLOCK);     // Set socket to non blocking (don't wait on data)
       receivePacket(socketDescriptor, incomingFileName, FILE_NAME_SIZE, clientPacketFields, debugFlag); // Receive file packet
-      close(socketDescriptor);                                                                          // Close current connection
-      socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);       // New socket descriptor for next connection
+      //close(socketDescriptor);                                                                          // Close current connection
+      //socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);       // New socket descriptor for next connection
       
 		}
     else {
