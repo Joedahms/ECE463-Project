@@ -1,4 +1,114 @@
-#define FILE_NAME_SIZE 50
+joe@joe-IdeaPad-Slim-7-14ITL05:~/Documents/school/ECE463/Project01/C_Version$ ls
+client_code  common  Flowcharts  makefile  project1.ps  README.md  server_code
+joe@joe-IdeaPad-Slim-7-14ITL05:~/Documents/school/ECE463/Project01/C_Version$ make
+gcc -c -g server_code/server.c
+gcc -c -g common/network_node.c
+gcc server.o network_node.o -o server
+mv server server_code
+gcc -c -g client_code/client.c
+gcc client.o network_node.o -o client
+mv client client_code
+joe@joe-IdeaPad-Slim-7-14ITL05:~/Documents/school/ECE463/Project01/C_Version$ cd server_code;ls
+server  server.c  server.h
+joe@joe-IdeaPad-Slim-7-14ITL05:~/Documents/school/ECE463/Project01/C_Version/server_code$ ./server
+Running server in normal mode
+Setting up socket...
+Socket set up
+Binding socket...
+Socket bound
+Listening for connections...
+Connection accepted
+Listening for data...
+Listening for connections...
+Connection accepted
+Listening for data...
+Listening for connections...
+Receiving Packet...
+93 byte packet received:
+Parsing packet...
+Checking for beginning of message...
+Beginning of message found
+Checking command...
+Command found: put
+Checking file name...
+File name:
+client.h
+Checking file contents...
+Opening received file...
+Received file opened
+Writing received file...
+Received file written
+Receiving Packet...
+4539 byte packet received:
+Parsing packet...
+Checking for beginning of message...
+Beginning of message found
+Checking command...
+Command found: put
+Checking file name...
+File name:
+client.c
+Checking file contents...
+Opening received file...
+Received file opened
+Writing received file...
+Received file written
+Receiving Packet...
+51 byte packet received:
+Parsing packet...
+Checking for beginning of message...
+Beginning of message found
+Checking command...
+Command found: get
+Checking file name...
+File name:
+server.h
+Allocated 5000 byte packet
+Added 12 byte beginning of message to packet
+Added 3 byte put command to packet
+Added 9 byte delimiter to packet
+Added 8 byte file name to packet
+Added 9 byte delimiter to packet
+Adding contents of server.h to packet
+Opening file server.h...
+File server.h opened
+server.h is 42 bytes
+Reading file...
+42 bytes read from server.h
+Added 42 byte file contents to packet
+Added 10 byte message end to packet
+93 byte packet to be sent: messageBeginputdelimFlagserver.hdelimFlag#ifndef SERVER_H
+#define SERVER_H
+
+#endif
+messageEnd
+Sending packet...
+93 byte packet sent
+Receiving Packet...
+51 byte packet received:
+Parsing packet...
+Checking for beginning of message...
+Beginning of message found
+Checking command...
+Command found: get
+Checking file name...
+File name:
+server.c
+Allocated 5000 byte packet
+Added 12 byte beginning of message to packet
+Added 3 byte put command to packet
+Added 9 byte delimiter to packet
+Added 8 byte file name to packet
+Added 9 byte delimiter to packet
+Adding contents of server.c to packet
+Opening file server.c...
+File server.c opened
+server.c is 4172 bytes
+Reading file...
+4172 bytes read from server.c
+Added 4172 byte file contents to packet
+Added 10 byte message end to packet
+4223 byte packet to be sent: messageBeginputdelimFlagserver.cdelimFlag#define FILE_NAME_SIZE 50
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -140,3 +250,15 @@ void shutdownServer(int signal) {
   printf("\n");
   exit(0);
 }
+messageEnd
+Sending packet...
+4223 byte packet sent
+Client closed connection
+Connection terminated
+Client closed connection
+Connection terminated
+^C
+joe@joe-IdeaPad-Slim-7-14ITL05:~/Documents/school/ECE463/Project01/C_Version/server_code$ ls
+client.c  client.h  server  server.c  server.h
+
+

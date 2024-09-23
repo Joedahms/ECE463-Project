@@ -1,0 +1,58 @@
+joe@joe-IdeaPad-Slim-7-14ITL05:~/Documents/school/ECE463/Project01/C_Version$ cd client_code/
+joe@joe-IdeaPad-Slim-7-14ITL05:~/Documents/school/ECE463/Project01/C_Version/client_code$ ./client
+Running client in normal mode
+Connecting to server...
+Connected to server...
+put client.h
+Allocated 5000 byte packet
+Added 12 byte beginning of message to packet
+Added 3 byte put command to packet
+Added 9 byte delimiter to packet
+Added 8 byte file name to packet
+Added 9 byte delimiter to packet
+Adding contents of client.h to packet
+Opening file client.h...
+File client.h opened
+client.h is 42 bytes
+Reading file...
+42 bytes read from client.h
+Added 42 byte file contents to packet
+Added 10 byte message end to packet
+93 byte packet to be sent: messageBeginputdelimFlagclient.hdelimFlag#ifndef CLIENT_H
+#define CLIENT_H
+
+#endif
+messageEnd
+Sending packet...
+93 byte packet sent
+get server.h
+Allocated 5000 byte packet
+Added 12 byte beginning of message to packet
+Added 3 byte get command to packet
+Added 9 byte delimiter to packet
+Added 8 byte file name to packet
+Added 9 byte delimiter to packet
+Added 0 byte dummy file contents to packet
+Added 10 byte message end to packet
+51 byte packet to be sent: messageBegingetdelimFlagserver.hdelimFlagmessageEnd
+Sending packet...
+51 byte packet sent
+Receiving Packet...
+93 byte packet received:
+Parsing packet...
+Checking for beginning of message...
+Beginning of message found
+Checking command...
+Command found: put
+Checking file name...
+File name:
+server.h
+Checking file contents...
+Opening received file...
+Received file opened
+Writing received file...
+Received file written
+^C
+joe@joe-IdeaPad-Slim-7-14ITL05:~/Documents/school/ECE463/Project01/C_Version/client_code$ ls
+client  client.c  client.h  server.c  server.h
+
