@@ -83,8 +83,6 @@ int main(int argc, char* argv[]) {
 		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
       // Send file
       sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.putCommand, debugFlag);  
-      //close(socketDescriptor);                                                                    // Close current connection
-      //socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0); // New socket descriptor for next connection
 		}
     // get
 		else if (userInput[0] == 'g' && userInput[1] == 'e' && userInput[2] == 't') {
@@ -93,9 +91,6 @@ int main(int argc, char* argv[]) {
       char* incomingFileName = malloc(FILE_NAME_SIZE);  // Space for file name
       fcntl(socketDescriptor, F_SETFL, O_NONBLOCK);     // Set socket to non blocking (don't wait on data)
       receivePacket(socketDescriptor, incomingFileName, FILE_NAME_SIZE, clientPacketFields, debugFlag); // Receive file packet
-      //close(socketDescriptor);                                                                          // Close current connection
-      //socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);       // New socket descriptor for next connection
-      
 		}
     else {
       // Enter valid command (put/get)
