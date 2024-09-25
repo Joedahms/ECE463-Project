@@ -11,13 +11,13 @@ The flowcharts were made and can be modified with [draw.io](https://app.diagrams
 
 ## Usage
 $ %put <file name>
-Send a file to the server
+Send a file to the server.
 
 $ %get <file name>
-Request a file stored on the remote server
+Request a file stored on the remote server.
 
 $ <any plain text message>
-Will transmit message to any other clients connected to the server
+Will transmit message to any other clients connected to the server.
 
 ## Compilation
 This project uses make for compilation. Enter "make" to compile the program, "make clean" to remove all object  
