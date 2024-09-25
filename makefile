@@ -1,17 +1,21 @@
 CFLAGS = -c -g
-S = server_code/
-CL = client_code/
-CO = common/
+S = src/server_code/
+CL = src/client_code/
+CO = src/common/
+CLTEST = client_test_directory
+STEST = server_test_directory
 
 all: server client
 
 server: server.o network_node.o
 	gcc server.o network_node.o -o server
-	mv server server_code
+	mkdir -p server_test_directory
+	mv server server_test_directory
 
 client: client.o network_node.o
 	gcc client.o network_node.o -o client
-	mv client client_code
+	mkdir -p client_test_directory
+	mv client client_test_directory
 
 client.o: $(CL)client.c $(CL)client.h
 	gcc $(CFLAGS) $(CL)client.c
@@ -23,6 +27,6 @@ network_node.o: $(CO)network_node.c $(CO)network_node.h
 	gcc $(CFLAGS) $(CO)network_node.c
 
 clean:
-	rm client_code/client
-	rm server_code/server
+	rm -rf $(CLTEST)
+	rm -rf $(STEST)
 	rm *.o
