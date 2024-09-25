@@ -1,0 +1,6 @@
+Eagle2_Project1_Report.pdf
+
+*.o
+
+/client_test_directory
+/server_test_directory
