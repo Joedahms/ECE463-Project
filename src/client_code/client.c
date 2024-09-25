@@ -24,6 +24,7 @@ int socketDescriptor;
 struct addrinfo* clientAddressInfo;
 
 // Forward declarations
+int checkUserInputForCommand(const char*);
 void printFileInformation(const char*, struct stat);
 void shutdownClient(int);
 
@@ -69,34 +70,55 @@ int main(int argc, char* argv[]) {
 	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
 
   // Connect to the server
-  const char* nodeName = "server";
-  socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
+  //const char* nodeName = "server";
+  //socketDescriptor = networkNodeConnect(nodeName, socketDescriptor, clientAddressInfo);
 
   // Constantly check user input for a put/get command
   while(1) {
     // Get user input and store in userInput buffer
-		char userInput[USER_INPUT_BUFFER_LENGTH];
+    char* userInput = malloc(USER_INPUT_BUFFER_LENGTH);
     fgets(userInput, USER_INPUT_BUFFER_LENGTH, stdin);
     userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
 
-    // put
-		if (userInput[0] == 'p' && userInput[1] == 'u' && userInput[2] == 't') {
-      // Send file
-      sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.putCommand, debugFlag);  
-		}
-    // get
-		else if (userInput[0] == 'g' && userInput[1] == 'e' && userInput[2] == 't') {
-      // Send get command and receive file
-      sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.getCommand, debugFlag);  // Send get command packet
-      char* incomingFileName = malloc(FILE_NAME_SIZE);  // Space for file name
-      fcntl(socketDescriptor, F_SETFL, O_NONBLOCK);     // Set socket to non blocking (don't wait on data)
-      receivePacket(socketDescriptor, incomingFileName, FILE_NAME_SIZE, clientPacketFields, debugFlag); // Receive file packet
-		}
-    else {
-      // Enter valid command (put/get)
+    if (checkUserInputForCommand(userInput)) {  // User entered a command
+      userInput++;
+      if (strcmp(userInput, "put") == 0) {
+        // Send file
+        sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.putCommand, debugFlag);  
+      }
+      else if (strcmp(userInput, "get") == 0) {
+        // Send get command and receive file
+        sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.getCommand, debugFlag);  // Send get command packet
+        char* incomingFileName = malloc(FILE_NAME_SIZE);  // Space for file name
+        fcntl(socketDescriptor, F_SETFL, O_NONBLOCK);     // Set socket to non blocking (don't wait on data)
+        receivePacket(socketDescriptor, incomingFileName, FILE_NAME_SIZE, clientPacketFields, debugFlag); // Receive file packet
+      }
+      else {
+        printf("Please enter a valid command\n");
+      }
     }
-	}
+    else { // User entered plain text to be sent to all other clients
+      
+    }
+  }
 	return 0;
+}
+
+/*
+ * Name: checkUserInputForCommand
+ * Purpose: Check if the user entered a command
+ * Input: What the user entered
+ * Ouptut:
+ * 1: User entered command
+ * 0: User entered plain text
+ */
+int checkUserInputForCommand(const char* userInput) {
+  if (userInput[0] == '%') {  // Check first character for '%'
+    return 1; // User entered command
+  }
+  else {
+    return 0; // User entered plain text
+  }
 }
 
 /*
@@ -114,6 +136,12 @@ void printFileInformation(const char* fileName, struct stat fileInformation) {
 	printf("Total size, in bytes: %ld\n", fileInformation.st_size);			
 }
 
+/*
+ * Name: shutdownClient
+ * Purpose: Gracefully shutdown the client.
+ * Input: Signal received
+ * Output: None
+ */
 void shutdownClient(int signal) {
   close(socketDescriptor);
 	freeaddrinfo(clientAddressInfo);
