@@ -1,10 +1,12 @@
-<h3>C Version</h3>
+# src
+Contained within this directory is all the source code to our project. It is written entirely in  
+C using the Berkeley sockets.
 
-<p>This version of project one uses the UNIX socket API to solve the client server problem</p>
+## client_code
+This directory contains the source code for the client.
 
-<p>client_code/ contains the code for the client</p>
-<p>server_code/ contains the code for the server</p>
-<p>Within both of those directories there is a folder named test. I am currently using this for received files</p>
+## server_code
+This directory contains the source code for the server.
 
-<p>Running make compiles both the client, and the server. In addition to compiling each program, it places the <br>
-executables in their respective folders</p>
+## common
+This directory contains functions used by both the client and the server.
