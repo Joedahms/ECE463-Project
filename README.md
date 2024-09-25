@@ -26,6 +26,6 @@ files and executables. Any files/directories that are created when compiling are
 ## Goal (Stage 2)
 Our goal for stage 2 is to expand on stage 1 to implement UDP messaging between clients through the server.  
 The client should send commands and plain text messages to server via UDP. If the server receives a plain text  
-message, it should relay that message to all connected clients. Any file contents exchanged through put and get commands  
-should be done over a TCP connection.
+message, it should relay that message to all connected clients. Any file contents exchanged through put and   
+get commands should be done over a TCP connection.
 
