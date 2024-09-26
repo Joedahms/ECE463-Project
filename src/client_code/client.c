@@ -17,16 +17,22 @@
 #include "client.h"
 
 // Global flags
-uint8_t debugFlag = 0;				// Can add conditional statements with this flag to print out extra info
+uint8_t debugFlag = 0;  // Can add conditional statements with this flag to print out extra info
 
 // Global variables (for signal handler)
 int socketDescriptor;
-struct addrinfo* clientAddressInfo;
+const struct sockaddr_in serverAddress = {
+ 	.sin_family = AF_INET,                              // IPV4
+  .sin_port = 3940
+};
 
 // Forward declarations
 int checkUserInputForCommand(const char*);
 void printFileInformation(const char*, struct stat);
 void shutdownClient(int);
+
+void sendCommandPacket() {
+}
 
 // Main
 int main(int argc, char* argv[]) {
@@ -57,17 +63,13 @@ int main(int argc, char* argv[]) {
 			printf("Invalid usage of client");  // Could make this printout better
 	}
 	
-	int status;
-	struct addrinfo hints;
+  /*
+  // Setup server address
+	serverAddress.sin_family = AF_INET;                              // IPV4
+  serverAddress.sin_port = htons(3940);
+*/
 
-  // Setup hints 
-	hints.ai_family = AF_INET;                              // Internet
-	hints.ai_socktype = SOCK_STREAM;                        // TCP
-	hints.ai_protocol = 0;                                  // Auto set based on family and socktype
-
-	getaddrinfo(NULL, "3940", &hints, &clientAddressInfo);  // Port 3940
-
-	socketDescriptor = socket(clientAddressInfo->ai_family, clientAddressInfo->ai_socktype, 0);
+	socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
 
   // Connect to the server
   //const char* nodeName = "server";
@@ -81,20 +83,12 @@ int main(int argc, char* argv[]) {
     userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
 
     if (checkUserInputForCommand(userInput)) {  // User entered a command
-      userInput++;
-      if (strcmp(userInput, "put") == 0) {
-        // Send file
-        sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.putCommand, debugFlag);  
-      }
-      else if (strcmp(userInput, "get") == 0) {
-        // Send get command and receive file
-        sendPacket(&userInput[4], socketDescriptor, clientPacketFields, clientPacketFields.getCommand, debugFlag);  // Send get command packet
-        char* incomingFileName = malloc(FILE_NAME_SIZE);  // Space for file name
-        fcntl(socketDescriptor, F_SETFL, O_NONBLOCK);     // Set socket to non blocking (don't wait on data)
-        receivePacket(socketDescriptor, incomingFileName, FILE_NAME_SIZE, clientPacketFields, debugFlag); // Receive file packet
+      if (strcmp(userInput, "%put") == 0 || strcmp(userInput, "%get") == 0) {
+        printf("%s\n", userInput);
+        sendto(socketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
       }
       else {
-        printf("Please enter a valid command\n");
+        // Enter a valid command
       }
     }
     else { // User entered plain text to be sent to all other clients
@@ -144,7 +138,6 @@ void printFileInformation(const char* fileName, struct stat fileInformation) {
  */
 void shutdownClient(int signal) {
   close(socketDescriptor);
-	freeaddrinfo(clientAddressInfo);
   printf("\n");
   exit(0);
 }

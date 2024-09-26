@@ -18,9 +18,16 @@
 uint8_t debugFlag = 0;  // Can add conditional statements with this flag to print out extra info
 
 // Global variables (for signal handler)
-struct addrinfo* serverAddressInfo;
+//struct addrinfo* serverAddressInfo;
 int socketDescriptor;
-int incomingSocketDescriptor;
+const struct sockaddr_in serverAddress = {
+  .sin_family = AF_INET,
+  .sin_addr.s_addr = INADDR_ANY,
+  .sin_port = 3940
+};
+struct sockaddr_in clientAddress;
+//int incomingSocketDescriptor;
+socklen_t* clientAddressLength = (unsigned int*)sizeof(clientAddress);
 
 // Forward declarations
 void shutdownServer(int);
@@ -51,6 +58,7 @@ int main(int argc, char* argv[]) {
 		default:
 	}
 
+  /*
 	int status;
 	struct addrinfo hints;
 
@@ -76,18 +84,30 @@ int main(int argc, char* argv[]) {
   printf("Binding socket...\n");
   bind(socketDescriptor, serverAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
   printf("Socket bound\n");
-	
+*/
+
+  bind(socketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+  
+/*	
   // Listen
   listen(socketDescriptor, 10);		// Limit queued connections to 10
 
   struct sockaddr incomingAddress;
   int incomingSocketDescriptor;
   socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
+*/
 
-  pid_t processId;
+  //pid_t processId;
 
+  char message[100];
   // Continously listen for new packets
   while (1) {
+    int n = recvfrom(socketDescriptor, message, 100, 0, (struct sockaddr *)&clientAddress, clientAddressLength);
+    if (n > 2) {
+      printf("%s\n", message);
+    }
+
+ /* 
     // Accept the incoming connection
     printf("Listening for connections...\n");
     incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
@@ -122,6 +142,7 @@ int main(int argc, char* argv[]) {
       exit(0);
     }
     close(incomingSocketDescriptor);
+  */
   }
   return 0;
 }
@@ -134,9 +155,9 @@ int main(int argc, char* argv[]) {
 * Output: None
 */
 void shutdownServer(int signal) {
-  close(incomingSocketDescriptor);
+//  close(incomingSocketDescriptor);
   close(socketDescriptor);
-	freeaddrinfo(serverAddressInfo);
+//	freeaddrinfo(serverAddressInfo);
   printf("\n");
   exit(0);
 }
