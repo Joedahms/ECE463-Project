@@ -21,10 +21,10 @@ uint8_t debugFlag = 0;  // Can add conditional statements with this flag to prin
 
 // Global variables (for signal handler)
 int socketDescriptor;
-const struct sockaddr_in serverAddress = {
- 	.sin_family = AF_INET,                              // IPV4
-  .sin_port = 3940
-};
+
+struct sockaddr_in serverAddress;
+
+
 
 // Forward declarations
 int checkUserInputForCommand(const char*);
@@ -37,6 +37,10 @@ void sendCommandPacket() {
 // Main
 int main(int argc, char* argv[]) {
   signal(SIGINT, shutdownClient);
+
+  serverAddress.sin_family = AF_INET;
+  serverAddress.sin_port = htons(PORT);
+  serverAddress.sin_addr.s_addr = INADDR_ANY;
 
   // Set packet fields
   packetFields clientPacketFields;
@@ -89,6 +93,7 @@ int main(int argc, char* argv[]) {
       }
       else {
         // Enter a valid command
+        sendto(socketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
       }
     }
     else { // User entered plain text to be sent to all other clients

@@ -1,4 +1,3 @@
-#define FILE_NAME_SIZE 50
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -10,6 +9,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "../common/network_node.h"
 #include "server.h"
@@ -20,31 +20,34 @@ uint8_t debugFlag = 0;  // Can add conditional statements with this flag to prin
 // Global variables (for signal handler)
 //struct addrinfo* serverAddressInfo;
 int socketDescriptor;
-const struct sockaddr_in serverAddress = {
-  .sin_family = AF_INET,
-  .sin_addr.s_addr = INADDR_ANY,
-  .sin_port = 3940
-};
-struct sockaddr_in clientAddress;
+struct sockaddr_in serverAddress;
+//struct sockaddr_in clientAddress;
 //int incomingSocketDescriptor;
-socklen_t* clientAddressLength = (unsigned int*)sizeof(clientAddress);
+//socklen_t clientAddressLength = sizeof(clientAddress);
 
 // Forward declarations
 void shutdownServer(int);
 
 // Main fucntion
 int main(int argc, char* argv[]) {
+  // Assign callback function for Ctrl-c
   signal(SIGINT, shutdownServer);
 
+  // Set up server sockaddr_in data structure
+  serverAddress.sin_family = AF_INET;
+  serverAddress.sin_addr.s_addr = INADDR_ANY;
+  serverAddress.sin_port = htons(PORT);
+
+/*
   packetFields serverPacketFields;
   serverPacketFields.delimiter = "delimFlag";
   serverPacketFields.messageBegin = "messageBegin";
   serverPacketFields.messageEnd = "messageEnd";
   serverPacketFields.putCommand = "put";
   serverPacketFields.getCommand = "get";
-
-
-  // Check how many command line areguements passed
+*/
+  
+  // Check how many command line arguments passed
 	switch (argc) {
 		case 1:
 			printf("Running server in normal mode\n");
@@ -74,19 +77,28 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(getaddrinfoReturnValue));	
 		exit(EXIT_FAILURE);
 	}
+  */
   
   // Set up socket
   printf("Setting up socket...\n");
-  socketDescriptor = socket(serverAddressInfo->ai_family, serverAddressInfo->ai_socktype, 0);
+  socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
+  if (socketDescriptor == -1) {
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Error when setting up socket: %s", errorMessage);
+    exit(1);
+  }
   printf("Socket set up\n");
 
   // Bind socket
   printf("Binding socket...\n");
-  bind(socketDescriptor, serverAddressInfo->ai_addr, serverAddressInfo->ai_addrlen);
+  int bindReturn = bind(socketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+  if (bindReturn == -1) {
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Error when binding socket: %s", errorMessage);
+  }
   printf("Socket bound\n");
-*/
-
-  bind(socketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
   
 /*	
   // Listen
@@ -99,10 +111,17 @@ int main(int argc, char* argv[]) {
 
   //pid_t processId;
 
-  char message[100];
-  // Continously listen for new packets
+  char message[INITIAL_MESSAGE_SIZE];
+  // Continously listen for new UDP packets
   while (1) {
-    int n = recvfrom(socketDescriptor, message, 100, 0, (struct sockaddr *)&clientAddress, clientAddressLength);
+    int n = recvfrom(socketDescriptor, message, 100, 0, 0, 0);
+    if (n < 0) {
+      char* errorMessage = malloc(1024);
+      strcpy(errorMessage, strerror(errno));
+      printf("%s\n", errorMessage);
+      exit(1);
+    }
+    printf("Received %d bytes", n);
     if (n > 2) {
       printf("%s\n", message);
     }
