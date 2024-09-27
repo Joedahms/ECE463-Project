@@ -124,21 +124,6 @@ int checkUserInputForCommand(const char* userInput) {
 }
 
 /*
- * Name: printFileInformation
- * Purpose: Utilize the stat data structure to print out various bits of
- * info about a particular file. Currently only using it to print out the
- * size of the file.
- * Input: 
- * - The name of the file
- * - The stat data structure corrosponding to the file
- * Output: None
- */
-void printFileInformation(const char* fileName, struct stat fileInformation) {
-	printf("Information about %s:\n", fileName);
-	printf("Total size, in bytes: %ld\n", fileInformation.st_size);			
-}
-
-/*
  * Name: shutdownClient
  * Purpose: Gracefully shutdown the client.
  * Input: Signal received
