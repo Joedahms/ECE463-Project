@@ -114,17 +114,16 @@ int main(int argc, char* argv[]) {
   char message[INITIAL_MESSAGE_SIZE];
   // Continously listen for new UDP packets
   while (1) {
-    int n = recvfrom(socketDescriptor, message, 100, 0, 0, 0);
-    if (n < 0) {
+    int bytesReceived = recvfrom(socketDescriptor, message, 100, 0, 0, 0);  // Receive UDP message
+    if (bytesReceived == -1) {                // Error
       char* errorMessage = malloc(1024);
       strcpy(errorMessage, strerror(errno));
       printf("%s\n", errorMessage);
       exit(1);
     }
-    printf("Received %d bytes", n);
-    if (n > 2) {
-      printf("%s\n", message);
-    }
+    printf("Received %d bytes\n", bytesReceived);
+    printf("%s\n", message);                      // Print message the client sent
+    memset(&message[0], 0, INITIAL_MESSAGE_SIZE); // Clear out message buffer
 
  /* 
     // Accept the incoming connection

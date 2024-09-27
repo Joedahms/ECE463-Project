@@ -86,18 +86,21 @@ int main(int argc, char* argv[]) {
     fgets(userInput, USER_INPUT_BUFFER_LENGTH, stdin);
     userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
 
-    if (checkUserInputForCommand(userInput)) {  // User entered a command
-      if (strcmp(userInput, "%put") == 0 || strcmp(userInput, "%get") == 0) {
-        printf("%s\n", userInput);
+    if (strlen(userInput) > 0) {  // User didn't just press return
+      if (checkUserInputForCommand(userInput)) {  // User entered a command
+        if (strcmp(userInput, "%put") == 0 || strcmp(userInput, "%get") == 0) { // Recognized command
+          printf("%s\n", userInput);
+          sendto(socketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+        }
+        else {  // Unrecognized command
+          printf("Please enter a valid command:\n");
+          printf("%%put to send a file to the server\n");
+          printf("%%get to request a file from the server\n");
+        }
+      }
+      else { // User entered plain text to be sent to all other clients
         sendto(socketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
       }
-      else {
-        // Enter a valid command
-        sendto(socketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
-      }
-    }
-    else { // User entered plain text to be sent to all other clients
-      
     }
   }
 	return 0;
