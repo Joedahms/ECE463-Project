@@ -344,4 +344,20 @@ int receivePacket(int incomingSocketDescriptor, char* fileName, int fileNameSize
   return 11;
 }
 
+/*
+ * Name: checkStringForCommand
+ * Purpose: Check if a string has a command in it
+ * Input: String that might have a command
+ * Ouptut:
+ * 1: String contains a command
+ * 0: String does not contain a command
+ */
+int checkStringForCommand(const char* userInput) {
+  if (userInput[0] == '%') {  // Check first character for '%'
+    return 1; // User entered command
+  }
+  else {
+    return 0; // User entered plain text
+  }
+}
 

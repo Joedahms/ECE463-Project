@@ -27,12 +27,8 @@ struct sockaddr_in serverAddress;
 
 
 // Forward declarations
-int checkUserInputForCommand(const char*);
 void printFileInformation(const char*, struct stat);
 void shutdownClient(int);
-
-void sendCommandPacket() {
-}
 
 // Main
 int main(int argc, char* argv[]) {
@@ -87,7 +83,7 @@ int main(int argc, char* argv[]) {
     userInput[strcspn(userInput, "\n")] = 0;                // Remove \n
 
     if (strlen(userInput) > 0) {  // User didn't just press return
-      if (checkUserInputForCommand(userInput)) {  // User entered a command
+      if (checkStringForCommand(userInput)) {  // User entered a command
         if (strncmp(userInput, "%put ", 5) == 0 || strncmp(userInput, "%get ", 5) == 0) { // Recognized command
           if (strlen(&userInput[5]) > 0) {                // User entered a file name following the command
             int fileAccess = access(&userInput[5], F_OK); // Check if the file exists
@@ -121,23 +117,6 @@ int main(int argc, char* argv[]) {
     }
   }
 	return 0;
-}
-
-/*
- * Name: checkUserInputForCommand
- * Purpose: Check if the user entered a command
- * Input: What the user entered
- * Ouptut:
- * 1: User entered command
- * 0: User entered plain text
- */
-int checkUserInputForCommand(const char* userInput) {
-  if (userInput[0] == '%') {  // Check first character for '%'
-    return 1; // User entered command
-  }
-  else {
-    return 0; // User entered plain text
-  }
 }
 
 /*

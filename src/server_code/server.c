@@ -112,18 +112,39 @@ int main(int argc, char* argv[]) {
   //pid_t processId;
 
   char message[INITIAL_MESSAGE_SIZE];
+  
   // Continously listen for new UDP packets
   while (1) {
-    int bytesReceived = recvfrom(socketDescriptor, message, 100, 0, 0, 0);  // Receive UDP message
-    if (bytesReceived == -1) {                // Error
+    int bytesReceived = recvfrom(socketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, 0, 0);  // Receive UDP message
+    if (bytesReceived == -1) {                          // Error
       char* errorMessage = malloc(1024);
       strcpy(errorMessage, strerror(errno));
       printf("%s\n", errorMessage);
       exit(1);
     }
-    printf("Received %d bytes\n", bytesReceived);
-    printf("%s\n", message);                      // Print message the client sent
-    memset(&message[0], 0, INITIAL_MESSAGE_SIZE); // Clear out message buffer
+    if (debugFlag) {
+      printf("Received %d byte message:\n%s\n", bytesReceived, message);
+    }
+    else {
+      printf("Received %d byte message\n", bytesReceived);
+    }
+
+    if (checkStringForCommand(message)) {               // If message was a command
+      if (strncmp(&message[1], "put", 3) == 0) {        // %put
+        printf("Received put command\n");
+      }
+      else if (strncmp(&message[1], "get", 3) == 0) {   // %get
+        printf("Received get command\n");
+      }
+      else {                                            // Invalid command
+        printf("Received invalid command\n");
+      }
+    }
+    else {                                              // Message was plain text
+      printf("Message receive was a plain text message\n");
+    }
+   
+    memset(&message[0], 0, INITIAL_MESSAGE_SIZE);       // Clear out message buffer
 
  /* 
     // Accept the incoming connection

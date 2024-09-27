@@ -28,4 +28,6 @@ int receiveBytes(int, char*, int, uint8_t);
 void sendPacket(const char*, int, packetFields, char* command, uint8_t);
 int sendBytes(int, const char*, unsigned long int, uint8_t);
 
+int checkStringForCommand(const char*);
+
 #endif
