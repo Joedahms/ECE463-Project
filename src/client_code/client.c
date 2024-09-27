@@ -88,9 +88,26 @@ int main(int argc, char* argv[]) {
 
     if (strlen(userInput) > 0) {  // User didn't just press return
       if (checkUserInputForCommand(userInput)) {  // User entered a command
-        if (strcmp(userInput, "%put") == 0 || strcmp(userInput, "%get") == 0) { // Recognized command
-          printf("%s\n", userInput);
-          sendto(socketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+        if (strncmp(userInput, "%put ", 5) == 0 || strncmp(userInput, "%get ", 5) == 0) { // Recognized command
+          if (strlen(&userInput[5]) > 0) {                // User entered a file name following the command
+            int fileAccess = access(&userInput[5], F_OK); // Check if the file exists
+            if (fileAccess == -1) {                       // File does not exist
+              char* errorMessage = malloc(1024);
+              strcpy(errorMessage, strerror(errno));
+              printf("Error: %s\n", errorMessage);
+            } 
+            else {
+              if (debugFlag) {
+                printf("Sending message to server:\n");
+                printf("%s\n", userInput);
+              }
+              else {
+                printf("Sending message to server...\n"); 
+              }
+              sendto(socketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+              printf("Message sent to server\n");
+            }
+          }
         }
         else {  // Unrecognized command
           printf("Please enter a valid command:\n");
