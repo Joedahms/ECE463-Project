@@ -88,11 +88,14 @@ int main(int argc, char* argv[]) {
       handleTcpConnection(clientTCPAddress, debugFlag);
 
       if (debugFlag) {
+
         printf("cc0 port: %d\n", ntohs(connectedClients[0].socketAddress.sin_port));
-        printf("cc0 address: %d\n\n", connectedClients[0].socketAddress.sin_addr.s_addr);
+        printf("cc0 address: %d\n", connectedClients[0].socketAddress.sin_addr.s_addr);
+        printf("cc0 pid: %d\n\n", connectedClients[0].processId);
 
         printf("cc1 port: %d\n", ntohs(connectedClients[1].socketAddress.sin_port));
-        printf("cc1 address: %d\n\n", connectedClients[1].socketAddress.sin_addr.s_addr);
+        printf("cc1 address: %d\n", connectedClients[1].socketAddress.sin_addr.s_addr);
+        printf("cc1 pid: %d\n\n", connectedClients[1].processId);
       }
     }
   }
@@ -347,8 +350,8 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
   connectedClients[availableConnectedClient].serverChildToParentPipe;
 
   // Setup pipes
-  pipe(connectedClients[0].serverParentToChildPipe);
-  pipe(connectedClients[0].serverChildToParentPipe);
+  pipe(connectedClients[availableConnectedClient].serverParentToChildPipe);
+  pipe(connectedClients[availableConnectedClient].serverChildToParentPipe);
 
   // Fork a new process for the client
   pid_t processId;
@@ -356,8 +359,8 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
     perror("Fork error"); 
   }
   else if (processId == 0) {                                // Child process
-    close(connectedClients[0].serverParentToChildPipe[1]);  // Close write on parent -> child.
-    close(connectedClients[0].serverChildToParentPipe[0]);  // Close read on child -> parent.
+    close(connectedClients[availableConnectedClient].serverParentToChildPipe[1]);  // Close write on parent -> child.
+    close(connectedClients[availableConnectedClient].serverChildToParentPipe[0]);  // Close read on child -> parent.
 
     // char* dataFromParent = malloc(100);
     // char* test = malloc(100);
@@ -369,20 +372,21 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
     int i;
     for(i = 0; i < 10; i++) {
       // Check for command from parent thru pipe
-      bytesFromParent = read(connectedClients[0].serverParentToChildPipe[0], dataFromParent, sizeof(dataFromParent));
+      bytesFromParent = read(connectedClients[availableConnectedClient].serverParentToChildPipe[0], dataFromParent, sizeof(dataFromParent));
       printf("%s\n", dataFromParent);
     }
     exit(0);
   }
   else {                                                    // Parent process
     if (debugFlag) {
-      printf("Parent process id?: %d\n", processId);
+      printf("Forked child PID: %d\n", processId);
     }
+    connectedClients[availableConnectedClient].processId = processId;
 
-    close(connectedClients[0].serverParentToChildPipe[0]);  // Close read on parent -> child. Write on this pipe
-    close(connectedClients[0].serverChildToParentPipe[1]);  // Close write on child -> parent. Read on this pipe
+    close(connectedClients[availableConnectedClient].serverParentToChildPipe[0]);  // Close read on parent -> child. Write on this pipe
+    close(connectedClients[availableConnectedClient].serverChildToParentPipe[1]);  // Close write on child -> parent. Read on this pipe
 
-    write(connectedClients[0].serverParentToChildPipe[1], "hello", 6);
+    write(connectedClients[availableConnectedClient].serverParentToChildPipe[1], "hello", 6);
   }
 }
 
