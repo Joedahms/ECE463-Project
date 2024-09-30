@@ -28,6 +28,10 @@ int main(int argc, char* argv[]) {
 
   // Array of connected client data structures
   struct connectedClient connectedClients[MAX_CONNECTED_CLIENTS];
+  int i; 
+  for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
+    memset(&(connectedClients[i].socketAddress), 0, sizeof(connectedClients[i].socketAddress));
+  }
 
   struct sockaddr_in serverAddress;
   struct sockaddr_in clientUDPAddress;
@@ -49,6 +53,7 @@ int main(int argc, char* argv[]) {
   int udpStatus;
   int tcpStatus;
   // Continously listen for new UDP packets
+  int j = 0;
   while (1) {
     udpStatus = checkUdpSocket(message, debugFlag);
     switch (udpStatus) {
@@ -254,7 +259,11 @@ void setupTcpSocket(struct sockaddr_in serverAddress) {
   printf("TCP socket bound\n");
 
   // Set socket to listen
-  listen(listeningTCPSocketDescriptor, 10);
+  int listenReturn = listen(listeningTCPSocketDescriptor, 10);
+  if (listenReturn == -1) {
+    perror("TCP socket listen error");
+    exit(1);
+  }
 }
 
 // Check to see if any messages queued at UDP socket
@@ -304,9 +313,11 @@ int checkTcpSocket(int listeningTCPSocketDescriptor, struct sockaddr_in incoming
 }
 
 void handleTcpConnection(struct connectedClient connectedClients[], size_t connectedClientsLength, struct sockaddr_in clientTCPAddress, uint8_t debugFlag) {
+
   connectedClients[0].socketAddress = clientTCPAddress;
   connectedClients[0].serverParentToChildPipe;
   connectedClients[0].serverChildToParentPipe;
+  findEmptyConnectedClient(connectedClients, MAX_CONNECTED_CLIENTS, debugFlag);
 
   pipe(connectedClients[0].serverParentToChildPipe);
   pipe(connectedClients[0].serverChildToParentPipe);
@@ -339,5 +350,19 @@ void handleTcpConnection(struct connectedClient connectedClients[], size_t conne
     close(connectedClients[0].serverChildToParentPipe[1]);  // Close write on child -> parent. Read on this pipe
 
     write(connectedClients[0].serverParentToChildPipe[1], "hello", 6);
+  }
+}
+
+void findEmptyConnectedClient(struct connectedClient connectedClients[], size_t connectedClientsLength, uint8_t debugFlag) {
+  int i;
+  for (i = 0; i < connectedClientsLength; i++) {
+    int port = connectedClients[i].socketAddress.sin_port;
+    if (port == 0) {
+      printf("%d is empty\n", i);
+    }
+    else {
+      printf("%d is not empty\n", i);
+      printf("Port: %d\n", port);
+    }
   }
 }
