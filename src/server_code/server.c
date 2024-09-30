@@ -26,6 +26,9 @@ int main(int argc, char* argv[]) {
   // Assign callback function for Ctrl-c
   signal(SIGINT, shutdownServer);
 
+  // Array of connected client data structures
+  struct connectedClient connectedClients[MAX_CONNECTED_CLIENTS];
+
   struct sockaddr_in serverAddress;
   struct sockaddr_in clientUDPAddress;
   struct sockaddr_in clientTCPAddress;
@@ -44,6 +47,7 @@ int main(int argc, char* argv[]) {
   char message[INITIAL_MESSAGE_SIZE];
   
   int udpStatus;
+  int tcpStatus;
   // Continously listen for new UDP packets
   while (1) {
     udpStatus = checkUdpSocket(message, debugFlag);
@@ -66,7 +70,13 @@ int main(int argc, char* argv[]) {
       default:
         
     }
-    checkTcpSocket(clientTCPAddress, debugFlag);
+    tcpStatus = checkTcpSocket(listeningTCPSocketDescriptor, clientTCPAddress, debugFlag);
+    if (tcpStatus == 0) { // No data to be read
+      ; 
+    }
+    else {                // Data to be read
+      handleTcpConnection(connectedClients, MAX_CONNECTED_CLIENTS, clientTCPAddress, debugFlag);
+    }
   }
 
       /*
@@ -171,6 +181,15 @@ void shutdownServer(int signal) {
   exit(0);
 }
 
+/*
+  * Name: handleErrorNonBlocking
+  * Purpose: Check the return after checking a non blocking socket
+  * Input: The return value from checking the socket
+  * Output:
+  * - 0: There is data waiting to be read
+  * - 1: No data waiting to be read
+*/
+
 int handleErrorNonBlocking(int returnValue) {
   if (returnValue == -1) {                          // Error
     if (errno == EAGAIN || errno == EWOULDBLOCK) {  // Errors occuring from no message on non blocking socket
@@ -268,7 +287,7 @@ int checkUdpSocket(char* message, uint8_t debugFlag) {
 }
 
 // Check to see if any incoming TCP connections from new clients
-void checkTcpSocket(struct sockaddr_in incomingAddress, uint8_t debugFlag) {
+int checkTcpSocket(int listeningTCPSocketDescriptor, struct sockaddr_in incomingAddress, uint8_t debugFlag) {
   int fd[2];
   int fd2[2];
   pid_t processId;
@@ -276,7 +295,18 @@ void checkTcpSocket(struct sockaddr_in incomingAddress, uint8_t debugFlag) {
   socklen_t incomingAddressLength;
   connectedTCPSocketDescriptor = accept(listeningTCPSocketDescriptor, (struct sockaddr *)&incomingAddress, &incomingAddressLength);
   int nonBlockingReturn = handleErrorNonBlocking(connectedTCPSocketDescriptor);
-  if (nonBlockingReturn == 0) {  // Incoming TCP connection
+  if (nonBlockingReturn == 0) {           // Data to be read
+    return connectedTCPSocketDescriptor;  // Return the connected socker descriptor
+  }
+  else {                                  // No data to be read
+    return 0;                             // Return 0
+  }
+}
+
+void handleTcpConnection(struct connectedClient connectedClients[], size_t connectedClientsLength, struct sockaddr_in clientTCPAddress, uint8_t debugFlag) {
+    
+  /*
+
     pipe(fd);
 
     if ((processId = fork()) == -1) { // Fork error
@@ -293,7 +323,6 @@ void checkTcpSocket(struct sockaddr_in incomingAddress, uint8_t debugFlag) {
 
       uint8_t clientConnected = 1;
       int i;
-      //while (clientConnected) {
       for(i = 0; i < 10; i++) {
         // Check for command from parent thru pipe
         bytesFromParent = read(fd[0], dataFromParent, sizeof(dataFromParent));
@@ -305,5 +334,5 @@ void checkTcpSocket(struct sockaddr_in incomingAddress, uint8_t debugFlag) {
       close(fd[0]);                   // Close input/read
       write(fd[1], "hello", 6);
     }
-  }
+  */
 }

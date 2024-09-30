@@ -6,6 +6,7 @@
 #define MAX_FILE_SIZE 5000
 #define INITIAL_MESSAGE_SIZE 100
 #define NUMBER_VALID_COMMANDS 2
+#define MAX_CONNECTED_CLIENTS 100
 
 #include <sys/types.h>
 #include <sys/socket.h>
