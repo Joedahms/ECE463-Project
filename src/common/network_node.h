@@ -33,4 +33,6 @@ int sendBytes(int, const char*, unsigned long int, uint8_t);
 
 int checkStringForCommand(const char*);
 
+void printReceivedMessage(int, char*, uint8_t);
+
 #endif

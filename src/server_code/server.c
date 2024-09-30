@@ -21,17 +21,6 @@ int listeningUDPSocketDescriptor;
 int listeningTCPSocketDescriptor;
 int connectedTCPSocketDescriptor;
 
-
-// Forward declarations
-void shutdownServer(int);                             // Gracefully shutdown the server
-int handleErrorNonBlocking(int);                      // Handle error when "reading" from non blocking socket
-void setupUdpSocket(struct sockaddr_in);
-void setupTcpSocket(struct sockaddr_in);
-void printReceivedMessage(int, char*, uint8_t);
-
-int checkUdpSocket(char*, uint8_t);
-void checkTcpSocket(struct sockaddr_in, uint8_t);
-
 // Main fucntion
 int main(int argc, char* argv[]) {
   // Assign callback function for Ctrl-c
@@ -46,7 +35,6 @@ int main(int argc, char* argv[]) {
   serverAddress.sin_family = AF_INET;
   serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
   serverAddress.sin_port = htons(PORT);
-
   
   checkCommandLineArguments(argc, argv, &debugFlag);
 
@@ -78,7 +66,6 @@ int main(int argc, char* argv[]) {
       default:
         
     }
-
     checkTcpSocket(clientTCPAddress, debugFlag);
   }
 
@@ -249,15 +236,6 @@ void setupTcpSocket(struct sockaddr_in serverAddress) {
 
   // Set socket to listen
   listen(listeningTCPSocketDescriptor, 10);
-}
-
-void printReceivedMessage(int bytesReceived, char* message, uint8_t debugFlag) {
-  if (debugFlag) {
-    printf("Received %d byte message:\n%s\n", bytesReceived, message);
-  }
-  else {
-    printf("Received %d byte message\n", bytesReceived);
-  }
 }
 
 // Check to see if any messages queued at UDP socket

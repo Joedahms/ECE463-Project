@@ -24,11 +24,11 @@ void checkCommandLineArguments(int argc, char** argv, uint8_t* debugFlag) {
 				printf("Running %s in debug mode\n", programName);
 			}
 			else {
-				printf("Invalid usage of %s", programName);  // Could make this printout better
+				printf("Invalid usage of %s", programName);
 			}
 			break;
     default:
-			printf("Invalid usage of %s", programName);  // Could make this printout better
+			printf("Invalid usage of %s", programName);
 	}
 }
 
@@ -379,6 +379,15 @@ int checkStringForCommand(const char* userInput) {
   }
   else {
     return 0; // User entered plain text
+  }
+}
+
+void printReceivedMessage(int bytesReceived, char* message, uint8_t debugFlag) {
+  if (debugFlag) {
+    printf("Received %d byte message:\n%s\n", bytesReceived, message);
+  }
+  else {
+    printf("Received %d byte message\n", bytesReceived);
   }
 }
 
