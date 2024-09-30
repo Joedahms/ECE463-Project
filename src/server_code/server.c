@@ -304,35 +304,40 @@ int checkTcpSocket(int listeningTCPSocketDescriptor, struct sockaddr_in incoming
 }
 
 void handleTcpConnection(struct connectedClient connectedClients[], size_t connectedClientsLength, struct sockaddr_in clientTCPAddress, uint8_t debugFlag) {
-    
-  /*
+  connectedClients[0].socketAddress = clientTCPAddress;
+  connectedClients[0].serverParentToChildPipe;
+  connectedClients[0].serverChildToParentPipe;
 
-    pipe(fd);
+  pipe(connectedClients[0].serverParentToChildPipe);
+  pipe(connectedClients[0].serverChildToParentPipe);
 
-    if ((processId = fork()) == -1) { // Fork error
-      perror("Fork error"); 
+  pid_t processId;
+  if ((processId = fork()) == -1) {                         // Fork error
+    perror("Fork error"); 
+  }
+  else if (processId == 0) {                                // Child process
+    close(connectedClients[0].serverParentToChildPipe[1]);  // Close write on parent -> child.
+    close(connectedClients[0].serverChildToParentPipe[0]);  // Close read on child -> parent.
+
+    // char* dataFromParent = malloc(100);
+    // char* test = malloc(100);
+    char dataFromParent[100];
+    char test[100];
+    int bytesFromParent = 0;
+
+    uint8_t clientConnected = 1;
+    int i;
+    for(i = 0; i < 10; i++) {
+      // Check for command from parent thru pipe
+      bytesFromParent = read(connectedClients[0].serverParentToChildPipe[0], dataFromParent, sizeof(dataFromParent));
+      printf("%s\n", dataFromParent);
     }
-    else if (processId == 0) {        // Child process
-      close(fd[1]);                   // Close output/write
+    exit(0);
+  }
+  else {                                                    // Parent process
+    close(connectedClients[0].serverParentToChildPipe[0]);  // Close read on parent -> child. Write on this pipe
+    close(connectedClients[0].serverChildToParentPipe[1]);  // Close write on child -> parent. Read on this pipe
 
-     // char* dataFromParent = malloc(100);
-     // char* test = malloc(100);
-      char dataFromParent[100];
-      char test[100];
-      int bytesFromParent = 0;
-
-      uint8_t clientConnected = 1;
-      int i;
-      for(i = 0; i < 10; i++) {
-        // Check for command from parent thru pipe
-        bytesFromParent = read(fd[0], dataFromParent, sizeof(dataFromParent));
-        printf("%s\n", dataFromParent);
-      }
-      exit(0);
-    }
-    else {                            // Parent process
-      close(fd[0]);                   // Close input/read
-      write(fd[1], "hello", 6);
-    }
-  */
+    write(connectedClients[0].serverParentToChildPipe[1], "hello", 6);
+  }
 }

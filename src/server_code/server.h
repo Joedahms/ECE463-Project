@@ -2,7 +2,7 @@
 #define SERVER_H
 
 struct connectedClient {
-  struct sockaddr_in clientAddress; // Address structure of connected client
+  struct sockaddr_in socketAddress; // Address structure of connected client
   pid_t processId;                  // Process id of process forked to handle connection
   int serverParentToChildPipe[2];   // Pipe for parent to send data to child process
   int serverChildToParentPipe[2];   // Pipe for child to send data to parent process
