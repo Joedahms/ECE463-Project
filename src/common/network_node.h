@@ -1,9 +1,11 @@
 #ifndef  NETWORK_NODE_H
 #define NETWORK_NODE_H
 
-#define PORT 3940
+#define PORT 3941
 #define FILE_NAME_SIZE 50
+#define MAX_FILE_SIZE 5000
 #define INITIAL_MESSAGE_SIZE 100
+#define NUMBER_VALID_COMMANDS 2
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -18,7 +20,7 @@ typedef struct {
   char* getCommand;
 }packetFields;
 
-int networkNodeConnect(const char*, int, struct addrinfo*);
+int networkNodeConnect(const char*, int, struct sockaddr*, socklen_t);
 
 char* packetAppend(char*, const char*, const char*);
 

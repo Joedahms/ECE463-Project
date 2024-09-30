@@ -13,7 +13,7 @@
 
 /*
  * Name: networkNodeConnect
- * Purpose: Connect to another socket
+ * Purpose: Connect to another IPV4 socket via TCP
  * Input: 
  * - Name of the node to connect to
  * - Socket on calling node process
@@ -21,10 +21,10 @@
  * Output: 
  * - Connected socket descriptor
  */
-int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrinfo* destinationAddressInfo) {
+int networkNodeConnect(const char* nodeName, int socketDescriptor, struct sockaddr* destinationAddress, socklen_t destinationAddressLength) {
   printf("Connecting to %s...\n", nodeName);
   int connectionStatus;
-  connectionStatus = connect(socketDescriptor, destinationAddressInfo->ai_addr, destinationAddressInfo->ai_addrlen);
+  connectionStatus = connect(socketDescriptor, destinationAddress, destinationAddressLength);
   // Check if connection was successful
   if (connectionStatus != 0) {
     char* errorMessage = malloc(1024);

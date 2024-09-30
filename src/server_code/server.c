@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -18,133 +17,119 @@
 uint8_t debugFlag = 0;  // Can add conditional statements with this flag to print out extra info
 
 // Global variables (for signal handler)
-//struct addrinfo* serverAddressInfo;
-int socketDescriptor;
-struct sockaddr_in serverAddress;
-//struct sockaddr_in clientAddress;
-//int incomingSocketDescriptor;
-//socklen_t clientAddressLength = sizeof(clientAddress);
+int listeningUDPSocketDescriptor;
+int listeningTCPSocketDescriptor;
+int connectedTCPSocketDescriptor;
+
 
 // Forward declarations
-void shutdownServer(int);
+void shutdownServer(int);                             // Gracefully shutdown the server
+int handleErrorNonBlocking(int);                      // Handle error when "reading" from non blocking socket
+void checkCommandLineArguments(int, char**, uint8_t*); // Check how many command line arguments passed
+void setupUdpSocket(struct sockaddr_in);
+void setupTcpSocket(struct sockaddr_in);
+void printReceivedMessage(int, char*, uint8_t);
+
+int checkUdpSocket(char*, uint8_t);
+void checkTcpSocket(struct sockaddr_in, uint8_t);
 
 // Main fucntion
 int main(int argc, char* argv[]) {
   // Assign callback function for Ctrl-c
   signal(SIGINT, shutdownServer);
 
+  struct sockaddr_in serverAddress;
+  struct sockaddr_in clientUDPAddress;
+  struct sockaddr_in clientTCPAddress;
+
   // Set up server sockaddr_in data structure
+  memset(&serverAddress, 0, sizeof(serverAddress));
   serverAddress.sin_family = AF_INET;
-  serverAddress.sin_addr.s_addr = INADDR_ANY;
+  serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
   serverAddress.sin_port = htons(PORT);
 
-/*
-  packetFields serverPacketFields;
-  serverPacketFields.delimiter = "delimFlag";
-  serverPacketFields.messageBegin = "messageBegin";
-  serverPacketFields.messageEnd = "messageEnd";
-  serverPacketFields.putCommand = "put";
-  serverPacketFields.getCommand = "get";
-*/
   
-  // Check how many command line arguments passed
-	switch (argc) {
-		case 1:
-			printf("Running server in normal mode\n");
-			break;
-		case 2:
-			if (strcmp(argv[1], "-d") == 0) {
-				debugFlag = 1;
-				printf("Running server in debug mode\n");
-			}
-			break;
-		default:
-	}
+  checkCommandLineArguments(argc, argv, &debugFlag);
 
-  /*
-	int status;
-	struct addrinfo hints;
-
-	hints.ai_family = AF_INET;        // IPV4
-	hints.ai_socktype = SOCK_STREAM;  // TCP
-	hints.ai_protocol = 0;            // Any protocol
-	hints.ai_flags = AI_PASSIVE;      // If node is null, will bind to IP of host
-	
-  // Port 3940
-	int getaddrinfoReturnValue;
-	getaddrinfoReturnValue = getaddrinfo(NULL, "3940", &hints, &serverAddressInfo);
-	if (getaddrinfoReturnValue != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(getaddrinfoReturnValue));	
-		exit(EXIT_FAILURE);
-	}
-  */
+  setupUdpSocket(serverAddress);
+  setupTcpSocket(serverAddress);
   
-  // Set up socket
-  printf("Setting up socket...\n");
-  socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
-  if (socketDescriptor == -1) {
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Error when setting up socket: %s", errorMessage);
-    exit(1);
-  }
-  printf("Socket set up\n");
-
-  // Bind socket
-  printf("Binding socket...\n");
-  int bindReturn = bind(socketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
-  if (bindReturn == -1) {
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Error when binding socket: %s", errorMessage);
-  }
-  printf("Socket bound\n");
-  
-/*	
-  // Listen
-  listen(socketDescriptor, 10);		// Limit queued connections to 10
-
-  struct sockaddr incomingAddress;
-  int incomingSocketDescriptor;
-  socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
-*/
-
-  //pid_t processId;
-
   char message[INITIAL_MESSAGE_SIZE];
   
+  int udpStatus;
   // Continously listen for new UDP packets
   while (1) {
-    int bytesReceived = recvfrom(socketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, 0, 0);  // Receive UDP message
-    if (bytesReceived == -1) {                          // Error
-      char* errorMessage = malloc(1024);
-      strcpy(errorMessage, strerror(errno));
-      printf("%s\n", errorMessage);
-      exit(1);
-    }
-    if (debugFlag) {
-      printf("Received %d byte message:\n%s\n", bytesReceived, message);
-    }
-    else {
-      printf("Received %d byte message\n", bytesReceived);
+    udpStatus = checkUdpSocket(message, debugFlag);
+    switch (udpStatus) {
+      case 0:   // Nothing
+        break;
+
+      case 1:   // Plain text
+        break;
+
+      case 2:   // Put command
+        break;
+
+      case 3:   // Get command
+        break;
+
+      case 4:   // Invalid command
+        break;
+
+      default:
+        
     }
 
-    if (checkStringForCommand(message)) {               // If message was a command
-      if (strncmp(&message[1], "put", 3) == 0) {        // %put
-        printf("Received put command\n");
+    checkTcpSocket(clientTCPAddress, debugFlag);
+  }
+
+      /*
+      {
+        if (strncmp(&message[1], "put", 3) == 0) {        // %put
+          printf("Received put command\n");
+          printf("Forking new process\n");
+
+            int totalBytesReceived = 0;
+            char* buffer = malloc(100);
+
+
+            while(clientConnected) {
+              while (totalBytesReceived = recv(connectedTCPSocketDescriptor, buffer, 100, 0)) { // Constantly check the socket for data
+                if (debugFlag) {
+                  printf("%d\n", totalBytesReceived);
+                }
+                if (totalBytesReceived != -1) { // Something was actually received or client closed connection
+                  break;
+                }
+              }
+              
+              if (totalBytesReceived == 0) {
+                printf("Client connection closed\n");
+                clientConnected = 0;
+              }
+              else {
+                printf("%s\n", buffer);
+              }
+            }
+        }
+        else if (strncmp(&message[1], "get", 3) == 0) {
+          printf("Received get command\n");
+        }
+        else {                                            // Invalid command
+          printf("Received invalid command\n");
+        }
+        exit(0);
       }
-      else if (strncmp(&message[1], "get", 3) == 0) {   // %get
-        printf("Received get command\n");
-      }
-      else {                                            // Invalid command
-        printf("Received invalid command\n");
-      }
-    }
+      */
+    /*
     else {                                              // Message was plain text
-      printf("Message receive was a plain text message\n");
+      printf("Message received was a plain text message\n");
     }
-   
     memset(&message[0], 0, INITIAL_MESSAGE_SIZE);       // Clear out message buffer
+    */
+
+    
+   
 
  /* 
     // Accept the incoming connection
@@ -182,7 +167,6 @@ int main(int argc, char* argv[]) {
     }
     close(incomingSocketDescriptor);
   */
-  }
   return 0;
 }
 
@@ -194,9 +178,176 @@ int main(int argc, char* argv[]) {
 * Output: None
 */
 void shutdownServer(int signal) {
-//  close(incomingSocketDescriptor);
-  close(socketDescriptor);
-//	freeaddrinfo(serverAddressInfo);
+  close(listeningUDPSocketDescriptor);
+  close(listeningTCPSocketDescriptor);
+  close(connectedTCPSocketDescriptor);
   printf("\n");
   exit(0);
+}
+
+int handleErrorNonBlocking(int returnValue) {
+  if (returnValue == -1) {                          // Error
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {  // Errors occuring from no message on non blocking socket
+      return 1;
+    }
+    else {                                          // Relevant error
+      perror("Error when checking non blocking socket");
+      exit(1);
+      return 1;
+    }
+  }
+  else {                                            // Got a message
+    return 0;
+  }
+}
+
+// Check how many command line arguments passed
+void checkCommandLineArguments(int argc, char** argv, uint8_t* debugFlag) {
+  char* programName = argv[0];
+	switch (argc) { // Check how many command line arguments are passed
+		case 1:
+			printf("Running %s in normal mode\n", programName);
+			break;
+		case 2:
+			if (strcmp(argv[1], "-d") == 0) { // Check if debug flag
+				*debugFlag = 1;
+				printf("Running %s in debug mode\n", programName);
+			}
+			else {
+				printf("Invalid usage of %s", programName);  // Could make this printout better
+			}
+			break;
+    default:
+			printf("Invalid usage of %s", programName);  // Could make this printout better
+	}
+}
+
+void setupUdpSocket(struct sockaddr_in serverAddress) {
+  // Set up UDP socket
+  printf("Setting up UDP socket...\n");
+  listeningUDPSocketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
+  if (listeningUDPSocketDescriptor == -1) {
+    perror("Error when setting up UDP socket");
+    exit(1);
+  }
+  fcntl(listeningUDPSocketDescriptor, F_SETFL, O_NONBLOCK);
+  printf("UDP socket set up\n");
+
+  // Bind UDP socket
+  printf("Binding UDP socket...\n");
+  int bindReturnUDP = bind(listeningUDPSocketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+  if (bindReturnUDP == -1) {
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Error when binding UDP socket: %s\n", errorMessage);
+    exit(1);
+  }
+  printf("UDP socket bound\n");
+}
+
+void setupTcpSocket(struct sockaddr_in serverAddress) {
+  // Set up TCP socket
+  printf("Setting up TCP socket...\n");
+  listeningTCPSocketDescriptor= socket(AF_INET, SOCK_STREAM, 0);
+  if (listeningTCPSocketDescriptor == -1) {
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Error when setting up TCP socket: %s", errorMessage);
+    exit(1);
+  }
+  fcntl(listeningTCPSocketDescriptor, F_SETFL, O_NONBLOCK);
+  printf("TCP socket set up\n");
+
+  // Bind TCP socket
+  printf("Binding TCP socket...\n");
+  int bindReturnTCP = bind(listeningTCPSocketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+  if (bindReturnTCP == -1) {
+    char* errorMessage = malloc(1024);
+    strcpy(errorMessage, strerror(errno));
+    printf("Error when binding TCP socket: %s\n", errorMessage);
+    exit(1);
+  }
+  printf("TCP socket bound\n");
+
+  // Set socket to listen
+  listen(listeningTCPSocketDescriptor, 10);
+}
+
+void printReceivedMessage(int bytesReceived, char* message, uint8_t debugFlag) {
+  if (debugFlag) {
+    printf("Received %d byte message:\n%s\n", bytesReceived, message);
+  }
+  else {
+    printf("Received %d byte message\n", bytesReceived);
+  }
+}
+
+// Check to see if any messages queued at UDP socket
+int checkUdpSocket(char* message, uint8_t debugFlag) {
+  int bytesReceived = recvfrom(listeningUDPSocketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, 0, 0);
+  int nonBlockingReturn = handleErrorNonBlocking(bytesReceived);
+
+  if (nonBlockingReturn == 1) {                 // No incoming packets
+    return 0;
+  }
+  
+  // Print out UDP message
+  printReceivedMessage(bytesReceived, message, debugFlag); 
+
+  if (checkStringForCommand(message) == 0) {    // Message is plain text
+    return 1;                                   // return 1
+  }
+  else if (strncmp(message, "%put ", 5) == 0) { // Received put command
+    printf("Received put command\n"); 
+    return 2;                                   // Return 2
+  }
+  else if (strncmp(message, "%get ", 5) == 0) { // Received get command
+    printf("Received get command\n");
+    return 3;                                   // Return 3
+  }
+  else {                                        // Received invalid command
+    printf("Received invalid command\n");
+    return 4;                                   // Return 4
+  }
+}
+
+// Check to see if any incoming TCP connections from new clients
+void checkTcpSocket(struct sockaddr_in incomingAddress, uint8_t debugFlag) {
+  int fd[2];
+  int fd2[2];
+  pid_t processId;
+
+  socklen_t incomingAddressLength;
+  connectedTCPSocketDescriptor = accept(listeningTCPSocketDescriptor, (struct sockaddr *)&incomingAddress, &incomingAddressLength);
+  int nonBlockingReturn = handleErrorNonBlocking(connectedTCPSocketDescriptor);
+  if (nonBlockingReturn == 0) {  // Incoming TCP connection
+    pipe(fd);
+
+    if ((processId = fork()) == -1) { // Fork error
+      perror("Fork error"); 
+    }
+    else if (processId == 0) {        // Child process
+      close(fd[1]);                   // Close output/write
+
+     // char* dataFromParent = malloc(100);
+     // char* test = malloc(100);
+      char dataFromParent[100];
+      char test[100];
+      int bytesFromParent = 0;
+
+      uint8_t clientConnected = 1;
+      int i;
+      //while (clientConnected) {
+      for(i = 0; i < 10; i++) {
+        // Check for command from parent thru pipe
+        bytesFromParent = read(fd[0], dataFromParent, sizeof(dataFromParent));
+        printf("%s\n", dataFromParent);
+      }
+      exit(0);
+    }
+    else {                            // Parent process
+      close(fd[0]);                   // Close input/read
+      write(fd[1], "hello", 6);
+    }
+  }
 }
