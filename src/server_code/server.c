@@ -25,7 +25,6 @@ int connectedTCPSocketDescriptor;
 // Forward declarations
 void shutdownServer(int);                             // Gracefully shutdown the server
 int handleErrorNonBlocking(int);                      // Handle error when "reading" from non blocking socket
-void checkCommandLineArguments(int, char**, uint8_t*); // Check how many command line arguments passed
 void setupUdpSocket(struct sockaddr_in);
 void setupTcpSocket(struct sockaddr_in);
 void printReceivedMessage(int, char*, uint8_t);
@@ -199,27 +198,6 @@ int handleErrorNonBlocking(int returnValue) {
   else {                                            // Got a message
     return 0;
   }
-}
-
-// Check how many command line arguments passed
-void checkCommandLineArguments(int argc, char** argv, uint8_t* debugFlag) {
-  char* programName = argv[0];
-	switch (argc) { // Check how many command line arguments are passed
-		case 1:
-			printf("Running %s in normal mode\n", programName);
-			break;
-		case 2:
-			if (strcmp(argv[1], "-d") == 0) { // Check if debug flag
-				*debugFlag = 1;
-				printf("Running %s in debug mode\n", programName);
-			}
-			else {
-				printf("Invalid usage of %s", programName);  // Could make this printout better
-			}
-			break;
-    default:
-			printf("Invalid usage of %s", programName);  // Could make this printout better
-	}
 }
 
 void setupUdpSocket(struct sockaddr_in serverAddress) {

@@ -20,6 +20,7 @@ typedef struct {
   char* getCommand;
 }packetFields;
 
+void checkCommandLineArguments(int, char**, uint8_t*); // Check how many command line arguments passed
 int networkNodeConnect(const char*, int, struct sockaddr*, socklen_t);
 
 char* packetAppend(char*, const char*, const char*);

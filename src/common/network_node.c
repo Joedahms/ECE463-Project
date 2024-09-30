@@ -11,6 +11,27 @@
 
 #include "network_node.h"
 
+// Check how many command line arguments passed
+void checkCommandLineArguments(int argc, char** argv, uint8_t* debugFlag) {
+  char* programName = argv[0];
+	switch (argc) { // Check how many command line arguments are passed
+		case 1:
+			printf("Running %s in normal mode\n", programName);
+			break;
+		case 2:
+			if (strcmp(argv[1], "-d") == 0) { // Check if debug flag
+				*debugFlag = 1;
+				printf("Running %s in debug mode\n", programName);
+			}
+			else {
+				printf("Invalid usage of %s", programName);  // Could make this printout better
+			}
+			break;
+    default:
+			printf("Invalid usage of %s", programName);  // Could make this printout better
+	}
+}
+
 /*
  * Name: networkNodeConnect
  * Purpose: Connect to another IPV4 socket via TCP

@@ -25,14 +25,6 @@ int udpSocketDescriptor;
 
 struct sockaddr_in serverAddress;
 
-// Forward declarations
-void shutdownClient(int);
-void getUserInput(char*);
-int checkForValidCommand(char*, const char**);
-void sendUdpMessage(struct sockaddr_in, char*, uint8_t);
-void putCommand();
-void getCommand();
-
 // Main
 int main(int argc, char* argv[]) {
   signal(SIGINT, shutdownClient);
@@ -41,22 +33,7 @@ int main(int argc, char* argv[]) {
   serverAddress.sin_port = htons(PORT);
   serverAddress.sin_addr.s_addr = INADDR_ANY;
 
-	switch (argc) { // Check how many command line arguments are passed
-		case 1:
-			printf("Running client in normal mode\n");
-			break;
-		case 2:
-			if (strcmp(argv[1], "-d") == 0) { // Check if debug flag
-				debugFlag = 1;
-				printf("%s\n", "Running client in debug mode");
-			}
-			else {
-				printf("Invalid usage of client");  // Could make this printout better
-			}
-			break;
-    default:
-			printf("Invalid usage of client");  // Could make this printout better
-	}
+  checkCommandLineArguments(argc, argv, &debugFlag);
  
 	udpSocketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
   tcpSocketDescriptor = socket(AF_INET, SOCK_STREAM, 0);
