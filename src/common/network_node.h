@@ -1,6 +1,10 @@
 #ifndef  NETWORK_NODE_H
 #define NETWORK_NODE_H
 
+#define PORT 3940
+#define FILE_NAME_SIZE 50
+#define INITIAL_MESSAGE_SIZE 100
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
