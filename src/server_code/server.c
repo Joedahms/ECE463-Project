@@ -21,13 +21,14 @@ int listeningUDPSocketDescriptor;
 int listeningTCPSocketDescriptor;
 int connectedTCPSocketDescriptor;
 
+struct connectedClient connectedClients[MAX_CONNECTED_CLIENTS];
+
 // Main fucntion
 int main(int argc, char* argv[]) {
   // Assign callback function for Ctrl-c
   signal(SIGINT, shutdownServer);
 
   // Array of connected client data structures
-  struct connectedClient connectedClients[MAX_CONNECTED_CLIENTS];
   int i; 
   for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
     memset(&(connectedClients[i].socketAddress), 0, sizeof(connectedClients[i].socketAddress));
@@ -75,12 +76,24 @@ int main(int argc, char* argv[]) {
       default:
         
     }
-    tcpStatus = checkTcpSocket(listeningTCPSocketDescriptor, clientTCPAddress, debugFlag);
+    tcpStatus = checkTcpSocket(&clientTCPAddress, debugFlag);
     if (tcpStatus == 0) { // No data to be read
       ; 
     }
     else {                // Data to be read
-      handleTcpConnection(connectedClients, MAX_CONNECTED_CLIENTS, clientTCPAddress, debugFlag);
+      if (debugFlag) {
+        printf("main port: %d\n", ntohs(clientTCPAddress.sin_port));
+      }
+
+      handleTcpConnection(clientTCPAddress, debugFlag);
+
+      if (debugFlag) {
+        printf("cc0 port: %d\n", ntohs(connectedClients[0].socketAddress.sin_port));
+        printf("cc0 address: %d\n\n", connectedClients[0].socketAddress.sin_addr.s_addr);
+
+        printf("cc1 port: %d\n", ntohs(connectedClients[1].socketAddress.sin_port));
+        printf("cc1 address: %d\n\n", connectedClients[1].socketAddress.sin_addr.s_addr);
+      }
     }
   }
 
@@ -237,7 +250,7 @@ void setupUdpSocket(struct sockaddr_in serverAddress) {
 void setupTcpSocket(struct sockaddr_in serverAddress) {
   // Set up TCP socket
   printf("Setting up TCP socket...\n");
-  listeningTCPSocketDescriptor= socket(AF_INET, SOCK_STREAM, 0);
+  listeningTCPSocketDescriptor = socket(AF_INET, SOCK_STREAM, 0);
   if (listeningTCPSocketDescriptor == -1) {
     char* errorMessage = malloc(1024);
     strcpy(errorMessage, strerror(errno));
@@ -296,32 +309,48 @@ int checkUdpSocket(char* message, uint8_t debugFlag) {
 }
 
 // Check to see if any incoming TCP connections from new clients
-int checkTcpSocket(int listeningTCPSocketDescriptor, struct sockaddr_in incomingAddress, uint8_t debugFlag) {
+int checkTcpSocket(struct sockaddr_in* incomingAddress, uint8_t debugFlag) {
   int fd[2];
   int fd2[2];
   pid_t processId;
 
-  socklen_t incomingAddressLength;
-  connectedTCPSocketDescriptor = accept(listeningTCPSocketDescriptor, (struct sockaddr *)&incomingAddress, &incomingAddressLength);
-  int nonBlockingReturn = handleErrorNonBlocking(connectedTCPSocketDescriptor);
+  socklen_t incomingAddressLength = sizeof(incomingAddress);
+  connectedTCPSocketDescriptor = accept(listeningTCPSocketDescriptor, (struct sockaddr *)incomingAddress, &incomingAddressLength);
+  int returnCheck = connectedTCPSocketDescriptor;
+  int nonBlockingReturn = handleErrorNonBlocking(returnCheck);
   if (nonBlockingReturn == 0) {           // Data to be read
-    return connectedTCPSocketDescriptor;  // Return the connected socker descriptor
+    return 1;                             // Return 1
   }
   else {                                  // No data to be read
     return 0;                             // Return 0
   }
 }
 
-void handleTcpConnection(struct connectedClient connectedClients[], size_t connectedClientsLength, struct sockaddr_in clientTCPAddress, uint8_t debugFlag) {
+void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag) {
+  if (debugFlag) {
+    printf("clientTCPAddress port at start of handleTCPConnection: %d\n", ntohs(clientTCPAddress.sin_port));  
+  }
+ 
+  // Find available space for new client
+  int availableConnectedClient = findEmptyConnectedClient(debugFlag); 
+  if (availableConnectedClient == -1) {
+    printf("Error: server cannot handle any additional clients");
+    exit(1);
+  }
+  if (debugFlag) {
+    printf("availableConnectedClient: %d\n", availableConnectedClient);
+  }
 
-  connectedClients[0].socketAddress = clientTCPAddress;
-  connectedClients[0].serverParentToChildPipe;
-  connectedClients[0].serverChildToParentPipe;
-  findEmptyConnectedClient(connectedClients, MAX_CONNECTED_CLIENTS, debugFlag);
+  // Initialize the new client
+  connectedClients[availableConnectedClient].socketAddress = clientTCPAddress;
+  connectedClients[availableConnectedClient].serverParentToChildPipe;
+  connectedClients[availableConnectedClient].serverChildToParentPipe;
 
+  // Setup pipes
   pipe(connectedClients[0].serverParentToChildPipe);
   pipe(connectedClients[0].serverChildToParentPipe);
 
+  // Fork a new process for the client
   pid_t processId;
   if ((processId = fork()) == -1) {                         // Fork error
     perror("Fork error"); 
@@ -346,6 +375,10 @@ void handleTcpConnection(struct connectedClient connectedClients[], size_t conne
     exit(0);
   }
   else {                                                    // Parent process
+    if (debugFlag) {
+      printf("Parent process id?: %d\n", processId);
+    }
+
     close(connectedClients[0].serverParentToChildPipe[0]);  // Close read on parent -> child. Write on this pipe
     close(connectedClients[0].serverChildToParentPipe[1]);  // Close write on child -> parent. Read on this pipe
 
@@ -353,16 +386,21 @@ void handleTcpConnection(struct connectedClient connectedClients[], size_t conne
   }
 }
 
-void findEmptyConnectedClient(struct connectedClient connectedClients[], size_t connectedClientsLength, uint8_t debugFlag) {
+int findEmptyConnectedClient(uint8_t debugFlag) {
   int i;
-  for (i = 0; i < connectedClientsLength; i++) {
-    int port = connectedClients[i].socketAddress.sin_port;
+  for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
+    int port = ntohs(connectedClients[i].socketAddress.sin_port);
     if (port == 0) {
-      printf("%d is empty\n", i);
+      return i;
+      if (debugFlag) {
+        printf("%d is empty\n", i);
+      }
     }
     else {
-      printf("%d is not empty\n", i);
-      printf("Port: %d\n", port);
+      if (debugFlag) {
+        printf("%d is not empty\n", i);
+      }
     }
   }
+  return -1;
 }
