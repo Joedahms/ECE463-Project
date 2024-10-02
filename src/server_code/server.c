@@ -335,6 +335,8 @@ int checkTcpSocket(struct sockaddr_in* incomingAddress, uint8_t debugFlag) {
   * Input: 
   * - Socket address structure of the connecting client's TCP socket
   * - Debug flag
+  * Output: 
+  * - None
 */
 void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag) {
   // Find available space in the connectedClients array for the new client
@@ -375,89 +377,74 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
       // Check for command from parent thru pipe
       //bytesFromParent = read(connectedClients[availableConnectedClient].serverParentToChildPipe[0], dataFromParent, sizeof(dataFromParent));
       bytesFromParent = read(connectedClients[availableConnectedClient].serverParentToChildPipe[0], dataFromParent, 100);
-      char* fileContents = malloc(100000);
-      if (strncmp(dataFromParent, "%get ", 5) == 0) {
-        
-          dataFromParent += 5;
-          char* fileName = malloc(1000);
-          strncpy(fileName, dataFromParent, strlen(dataFromParent));
+      char* fileContents = malloc(MAX_FILE_SIZE);                         // Space for file contents
 
+      if (strncmp(dataFromParent, "%get ", 5) == 0) {                     // If received a get command
+        char* fileName = malloc(FILE_NAME_SIZE);                          // Space for the file name
+        fileNameFromCommand(dataFromParent, fileName);                    // Extract the file name from the send command
 
-          // Open the file
-          int fileDescriptor;
-          printf("Opening file %s...\n", fileName);
-          fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
-          if (fileDescriptor == -1) {
-            char* errorMessage = malloc(1024);
-            strcpy(errorMessage, strerror(errno));
-            printf("Failed to open file \"%s\" with error %s\n", fileName, errorMessage);
-            exit(1);
-          }
-          printf("File %s opened\n", fileName);
+        int readFileReturn = readFile(fileName, fileContents, debugFlag); // Read the contents of the file into the buffer
+        if (readFileReturn != -1) {
+          // Send the file contents
+          printf("Sending file contents...\n");
+          int bytesSent = sendBytes(connectedTCPSocketDescriptor, fileContents, strlen(fileContents), debugFlag);
 
-          // Get the size of the file in bytes
-          struct stat fileInformation;
-          if (stat(fileName, &fileInformation) == -1) {
-            printf("Stat Error\n");
-            exit(1);
-          };
-          unsigned long int fileSize = fileInformation.st_size;
-          printf("%s is %ld bytes\n", fileName, fileSize);
-
-          // Read out the contents of the file
-          printf("Reading file...\n");
-          ssize_t bytesReadFromFile = 0;
-          bytesReadFromFile = read(fileDescriptor, fileContents , fileSize);
-          if (bytesReadFromFile == -1) {            // read failed()
-            char* errorMessage = malloc(1024);
-            strcpy(errorMessage, strerror(errno));
-            printf("Failed to read file \"%s\" with error %s\n", fileName, errorMessage);
-            exit(1);
+          if (debugFlag) {
+            printf("%d byte file sent\n", bytesSent);
           }
           else {
-            printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
+            printf("File contents sent\n");
           }
         }
-      
-        // Send the file contents
-        printf("Sending packet...\n");
-        int bytesSent = sendBytes(connectedTCPSocketDescriptor, fileContents, strlen(fileContents), debugFlag);
-        printf("%d byte packet sent\n", bytesSent);
-    }
+        else {
+          printf("Error reading file for get request\n");
+        }
+      }       // End if (get)
+    }         // End while(1)
     exit(0);
-  }
-  else {                                                    // Parent process
+  }           // End child process
+  else {      // Parent process
     if (debugFlag) {
       printf("Forked child PID: %d\n", processId);
     }
-    connectedClients[availableConnectedClient].processId = processId;
+    connectedClients[availableConnectedClient].processId = processId;             // Set process ID
 
-    close(connectedClients[availableConnectedClient].serverParentToChildPipe[0]);  // Close read on parent -> child. Write on this pipe
-    close(connectedClients[availableConnectedClient].serverChildToParentPipe[1]);  // Close write on child -> parent. Read on this pipe
-
-    write(connectedClients[availableConnectedClient].serverParentToChildPipe[1], "hello", 6);
+    close(connectedClients[availableConnectedClient].serverParentToChildPipe[0]); // Close read on parent -> child. Write on this pipe
+    close(connectedClients[availableConnectedClient].serverChildToParentPipe[1]); // Close write on child -> parent. Read on this pipe
   }
 }
 
+/*
+  * Name: findEmptyConnectedClient
+  * Purpose: Loop through the connectedClients array until an empty spot is found
+  * Input: debugFlag
+  * Output: Index of first empty spot
+*/
 int findEmptyConnectedClient(uint8_t debugFlag) {
-  int i;
-  for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
-    int port = ntohs(connectedClients[i].socketTcpAddress.sin_port);
-    if (port == 0) {
-      return i;
+  int connectedClientsIndex;
+  for (connectedClientsIndex = 0; connectedClientsIndex < MAX_CONNECTED_CLIENTS; connectedClientsIndex++) { // Loop through all connected clients
+    int port = ntohs(connectedClients[connectedClientsIndex].socketTcpAddress.sin_port);  // Check if the port has been set
+    if (port == 0) {                        // Port not set
+      return connectedClientsIndex;         // Empty spot, return index
       if (debugFlag) {
-        printf("%d is empty\n", i);
+        printf("%d is empty\n", connectedClientsIndex);
       }
     }
     else {
       if (debugFlag) {
-        printf("%d is not empty\n", i);
+        printf("%d is not empty\n", connectedClientsIndex);
       }
     }
   }
-  return -1;
+  return -1;                                // All spots filled
 }
 
+/*
+  * Name: printAllConnectedClients
+  * Purpose: Print all the connected clients in a readable format
+  * Input: None
+  * Output: None
+*/
 void printAllConnectedClients() {
   printf("\n*** PRINTING ALL CONNECTED CLIENTS ***\n");
   int i;
