@@ -21,6 +21,7 @@ int listeningUDPSocketDescriptor;
 int listeningTCPSocketDescriptor;
 int connectedTCPSocketDescriptor;
 
+// Array of connected client data structures
 struct connectedClient connectedClients[MAX_CONNECTED_CLIENTS];
 
 // Main fucntion
@@ -28,128 +29,117 @@ int main(int argc, char* argv[]) {
   // Assign callback function for Ctrl-c
   signal(SIGINT, shutdownServer);
 
-  // Array of connected client data structures
+  // Make sure all connectedClients are set to 0
   int i; 
   for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
     memset(&(connectedClients[i].socketTcpAddress), 0, sizeof(connectedClients[i].socketTcpAddress));
   }
 
-  struct sockaddr_in serverAddress;
-  struct sockaddr_in clientUDPAddress;
-  struct sockaddr_in clientTCPAddress;
+  // Initialize socket address stuctures
+  struct sockaddr_in serverAddress;     // Socket address that clients should connect to
+                                        // Same port is used for both UDP and TCP connections
+  struct sockaddr_in clientUDPAddress;  // Client's UDP info
+  struct sockaddr_in clientTCPAddress;  // Client's TCP info
 
   // Set up server sockaddr_in data structure
-  memset(&serverAddress, 0, sizeof(serverAddress));
-  serverAddress.sin_family = AF_INET;
-  serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-  serverAddress.sin_port = htons(PORT);
+  memset(&serverAddress, 0, sizeof(serverAddress));   // 0 out
+  serverAddress.sin_family = AF_INET;                 // IPV4
+  serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);  
+  serverAddress.sin_port = htons(PORT);               // Port
   
-  checkCommandLineArguments(argc, argv, &debugFlag);
+  checkCommandLineArguments(argc, argv, &debugFlag);  // Check if user passed any arguments
 
-  setupUdpSocket(serverAddress);
-  setupTcpSocket(serverAddress);
+  setupUdpSocket(serverAddress);  // Setup the UDP socket
+  setupTcpSocket(serverAddress);  // Setup the TCP socket
   
-  char* message = malloc(INITIAL_MESSAGE_SIZE);
+  char* message = malloc(INITIAL_MESSAGE_SIZE); // Space for incoming messages
   
+  // Whether or not data is available at the socket. If it is, what kind.
   int udpStatus;
   int tcpStatus;
-  // Continously listen for new UDP packets
-  int j = 0;
+
+  // Continously listen for new UDP packets and new TCP connections
   while (1) {
-    udpStatus = checkUdpSocket(&clientUDPAddress, message, debugFlag);
+    udpStatus = checkUdpSocket(&clientUDPAddress, message, debugFlag);  // Check the UDP socket
     switch (udpStatus) {
       case 0:   // Nothing
         break;
 
       case 1:   // TCP/UDP relation info
-        // Message contains TCP address and port
-        //printf("%s\n", message);
-        message += 9;
-        char* tcpAddressString = malloc(20);
-        strncpy(tcpAddressString, message, 10);
-        //printf("%s\n", tcpAddressString);
-        message += 16;
-        char* tcpPortString = malloc(20);
-        strncpy(tcpPortString, message, 5);
-        //printf("%s\n", tcpPortString);
+                // Message contains TCP address and port
+        message += 9;                           // Discard $address=
+        char* tcpAddressString = malloc(20);    // Space for address string
+        strncpy(tcpAddressString, message, 10); // Store the address
+        message += 16;                          // Discard the address and $port=
+        char* tcpPortString = malloc(20);       // Space for port string
+        strncpy(tcpPortString, message, 5);     // Store the port
 
-        long tcpAddressInteger = strtol(tcpAddressString, NULL, 10);
-        long tcpPortInteger = strtol(tcpPortString, NULL, 10);
+        // Convert the address and port to integers
+        long tcpAddressInteger = strtol(tcpAddressString, NULL, 10);  // Address
+        long tcpPortInteger = strtol(tcpPortString, NULL, 10);        // Port
 
+        // Find the connected client with the sent TCP address and port
+        // Then assign the UDP address and port it was sent to said connected client
         int i; 
-        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
-          unsigned long connectedClientAddress = ntohl(connectedClients[i].socketTcpAddress.sin_addr.s_addr);
-          unsigned short connectedClientPort = ntohs(connectedClients[i].socketTcpAddress.sin_port);
+        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) { // Loop through all connected clients
+          unsigned long connectedClientAddress = ntohl(connectedClients[i].socketTcpAddress.sin_addr.s_addr); // Connected client address
+          unsigned short connectedClientPort = ntohs(connectedClients[i].socketTcpAddress.sin_port);          // Connected client port
 
+          // Does what was sent match the current connected client?
           if (tcpAddressInteger == connectedClientAddress && tcpPortInteger == connectedClientPort) {
-            connectedClients[i].socketUdpAddress.sin_addr.s_addr = clientUDPAddress.sin_addr.s_addr;
-            connectedClients[i].socketUdpAddress.sin_port = clientUDPAddress.sin_port;
-            break;
+            connectedClients[i].socketUdpAddress.sin_addr.s_addr = clientUDPAddress.sin_addr.s_addr;  // Set UDP address
+            connectedClients[i].socketUdpAddress.sin_port = clientUDPAddress.sin_port;                // Set UDP port
+            break;                                                                                    // Don't loop through the rest of the connected clients
           }
         }
-
-        printAllConnectedClients();
-        break;
+        if (debugFlag) {
+          printAllConnectedClients(); 
+        }
+        break;  // Break case 1
 
       case 2:   // Plain text
-        break;
+                // Handle plain text here
+        break;  // Break case 2
 
       case 3:   // Put command
-        /*
-        printf("UDP Address: %d\n", ntohl(clientUDPAddress.sin_addr.s_addr));
-        printf("UDP Port: %d\n", ntohs(clientUDPAddress.sin_port));
-
-        printf("TCP Address: %d\n", ntohl(connectedClients[0].socketTcpAddress.sin_addr.s_addr));
-        printf("TCP Port: %d\n", ntohs(connectedClients[0].socketTcpAddress.sin_port));
-
-        int incomingPort = ntohs(clientUDPAddress.sin_port);
-        printf("Incoming get command from port: %d\n", incomingPort);
-        */
-        break;
+                // Handle put command here
+        break;  // Break case 3
 
       case 4:   // Get command
-        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
-          unsigned long currentConnectedClientUdpAddress;
-          unsigned short currentConnectedClientUdpPort;
-          currentConnectedClientUdpAddress = ntohl(connectedClients[i].socketUdpAddress.sin_addr.s_addr);
-          currentConnectedClientUdpPort = ntohs(connectedClients[i].socketUdpAddress.sin_port);
-          if (currentConnectedClientUdpAddress != ntohl(clientUDPAddress.sin_addr.s_addr)) {
-            continue;
+        // Check all connected clients to find which one sent the get command
+        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {     // Loop through all connected clients
+          unsigned long currentConnectedClientUdpAddress; // Connected client address
+          unsigned short currentConnectedClientUdpPort;   // Connected client port
+          currentConnectedClientUdpAddress = ntohl(connectedClients[i].socketUdpAddress.sin_addr.s_addr); // Set the address
+          currentConnectedClientUdpPort = ntohs(connectedClients[i].socketUdpAddress.sin_port);           // Set the port
+          if (currentConnectedClientUdpAddress != ntohl(clientUDPAddress.sin_addr.s_addr)) {  // If the address doesn't match
+            continue;                                                                         // Keep looking
           }
-          if (currentConnectedClientUdpPort != ntohs(clientUDPAddress.sin_port)) {
-            continue;
+          if (currentConnectedClientUdpPort != ntohs(clientUDPAddress.sin_port)) {            // If address matches but the port doesn't
+            continue;                                                                         // Keep looking
           }
-          write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));
+          // Address and port match
+          // Send command to child process associated with the client that sent the message
+          write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));  
         }
-        break;
+        break;  // Break case 4
 
       case 5:   // Invalid command
-        break;
+        break;  // Break case 5
 
       default:
-        
     }
 
-    tcpStatus = checkTcpSocket(&clientTCPAddress, debugFlag);
-    if (tcpStatus == 0) { // No data to be read
-      ; 
+    tcpStatus = checkTcpSocket(&clientTCPAddress, debugFlag); // Check for any new TCP connections
+    if (tcpStatus == 0) {                                     // No new TCP connections
+      ;                                                       // Do nothing
     }
-    else {                // Data to be read
-      handleTcpConnection(clientTCPAddress, debugFlag);
-
-      if (debugFlag) {
-        printf("\ncc0 port: %d\n", ntohs(connectedClients[0].socketTcpAddress.sin_port));
-        printf("cc0 address: %d\n", connectedClients[0].socketTcpAddress.sin_addr.s_addr);
-        printf("cc0 pid: %d\n", connectedClients[0].processId);
-
-        printf("cc1 port: %d\n", ntohs(connectedClients[1].socketTcpAddress.sin_port));
-        printf("cc1 address: %d\n", connectedClients[1].socketTcpAddress.sin_addr.s_addr);
-        printf("cc1 pid: %d\n\n", connectedClients[1].processId);
-      }
+    else {                                                    // New TCP connection
+      handleTcpConnection(clientTCPAddress, debugFlag);       // Handle it
     }
-  }
+  } // while(1)
   return 0;
-}
+} // main
 
 /*
 * Name: shutdownServer
@@ -190,6 +180,12 @@ int handleErrorNonBlocking(int returnValue) {
   }
 }
 
+/*
+ * Name: setupUdpSocket
+ * Purpose: Setup the UDP socket. Set it to non blocking. Bind it. 
+ * Input: Address structure to bind to.
+ * Output: None
+*/
 void setupUdpSocket(struct sockaddr_in serverAddress) {
   // Set up UDP socket
   printf("Setting up UDP socket...\n");
@@ -198,41 +194,51 @@ void setupUdpSocket(struct sockaddr_in serverAddress) {
     perror("Error when setting up UDP socket");
     exit(1);
   }
-  fcntl(listeningUDPSocketDescriptor, F_SETFL, O_NONBLOCK);
+
+  // Set non blocking
+  int fcntlReturn = fcntl(listeningUDPSocketDescriptor, F_SETFL, O_NONBLOCK); // Set to non blocking
+  if (fcntlReturn == -1) {
+    perror("Error when setting UDP socket non blocking");
+  }
   printf("UDP socket set up\n");
 
   // Bind UDP socket
   printf("Binding UDP socket...\n");
-  int bindReturnUDP = bind(listeningUDPSocketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+  int bindReturnUDP = bind(listeningUDPSocketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress)); // Bind
   if (bindReturnUDP == -1) {
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Error when binding UDP socket: %s\n", errorMessage);
+    perror("Error when binding UDP socket");
     exit(1);
   }
   printf("UDP socket bound\n");
 }
 
+/*
+ * Name: setupTcpSocket
+ * Purpose: Setup the TCP socket. Set it non blocking. Bind it. Set it to listen.
+ * Input: Address structure to bind to.
+ * Output: None
+*/
 void setupTcpSocket(struct sockaddr_in serverAddress) {
   // Set up TCP socket
   printf("Setting up TCP socket...\n");
   listeningTCPSocketDescriptor = socket(AF_INET, SOCK_STREAM, 0);
   if (listeningTCPSocketDescriptor == -1) {
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Error when setting up TCP socket: %s", errorMessage);
+    perror("Error when setting up TCP socket");
     exit(1);
   }
-  fcntl(listeningTCPSocketDescriptor, F_SETFL, O_NONBLOCK);
+
+  // Set non blocking
+  int fcntlReturn = fcntl(listeningTCPSocketDescriptor, F_SETFL, O_NONBLOCK);
+  if (fcntlReturn == -1) {
+    perror("Error when setting TCP socket to non blocking");
+  }
   printf("TCP socket set up\n");
 
   // Bind TCP socket
   printf("Binding TCP socket...\n");
   int bindReturnTCP = bind(listeningTCPSocketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
   if (bindReturnTCP == -1) {
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Error when binding TCP socket: %s\n", errorMessage);
+    perror("Error when binding TCP socket");
     exit(1);
   }
   printf("TCP socket bound\n");
@@ -261,50 +267,57 @@ void setupTcpSocket(struct sockaddr_in serverAddress) {
   * - 4: Get command
   * - 5: Invalid command
 */
-// Check to see if any messages queued at UDP socket
 int checkUdpSocket(struct sockaddr_in* incomingAddress, char* message, uint8_t debugFlag) {
+  // Check for incoming messages
   socklen_t incomingAddressLength = sizeof(incomingAddress);
   int bytesReceived = recvfrom(listeningUDPSocketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, (struct sockaddr *)incomingAddress, &incomingAddressLength);
   int nonBlockingReturn = handleErrorNonBlocking(bytesReceived);
 
-  if (nonBlockingReturn == 1) {                 // No incoming packets
-    return 0;
+  if (nonBlockingReturn == 1) {                 // No incoming messages
+    return 0;                                   // Return 0
   }
   
   // Print out UDP message
   printReceivedMessage(*incomingAddress, bytesReceived, message, debugFlag); 
 
-  if (strncmp(message, "$address=", 9) == 0) {  // Received info about TCP/UDP relation
+  if (strncmp(message, "$address=", 9) == 0) {    // Received info about TCP/UDP relation
     printf("Received TCP/UDP relation info\n");
-    return 1;
+    return 1;                                     // Return 1
   }
-  else if (checkStringForCommand(message) == 0) {    // Message is plain text
-    return 2;                                   // return 1
+  else if (checkStringForCommand(message) == 0) { // Message is plain text
+    printf("Received plain text\n");
+    return 2;                                     // return 2
   }
-  else if (strncmp(message, "%put ", 5) == 0) { // Received put command
+  else if (strncmp(message, "%put ", 5) == 0) {   // Received put command
     printf("Received put command\n"); 
-    return 3;                                   // Return 2
+    return 3;                                     // Return 3
   }
-  else if (strncmp(message, "%get ", 5) == 0) { // Received get command
+  else if (strncmp(message, "%get ", 5) == 0) {   // Received get command
     printf("Received get command\n");
-    return 4;                                       // Return 3
+    return 4;                                     // Return 4
   }
-  else {                                            // Received invalid command
+  else {                                          // Received invalid command
     printf("Received invalid command\n");
-    return 5;                                       // Return 4
+    return 5;                                     // Return 5
   }
 }
 
-// Check to see if any incoming TCP connections from new clients
+/*
+  * Name: checkTcpSocket
+  * Purpose: Check if any new clients are trying to establish their TCP connection
+  * Input:
+  * - Data structure to store client info in if there is an incoming connection
+  * - Debug flag
+  * Output: 
+  * - 0: No incoming TCP connections
+  * - 1: There is an incoming connection. Its info has been stored in incomingAddress.
+*/
 int checkTcpSocket(struct sockaddr_in* incomingAddress, uint8_t debugFlag) {
-  int fd[2];
-  int fd2[2];
-  pid_t processId;
-
   socklen_t incomingAddressLength = sizeof(incomingAddress);
   connectedTCPSocketDescriptor = accept(listeningTCPSocketDescriptor, (struct sockaddr *)incomingAddress, &incomingAddressLength);
   int returnCheck = connectedTCPSocketDescriptor;
   int nonBlockingReturn = handleErrorNonBlocking(returnCheck);
+
   if (nonBlockingReturn == 0) {           // Data to be read
     return 1;                             // Return 1
   }
@@ -313,16 +326,20 @@ int checkTcpSocket(struct sockaddr_in* incomingAddress, uint8_t debugFlag) {
   }
 }
 
+/*
+  * Name: handleTcpConnection
+  * Purpose: If there is a new client connecting to the server, store its data, and fork a new process
+  * for handling its TCP connection. Add the client to the connectedClients array. Add its data to the 
+  * connectedClients array. Setup pipes so the forked child process and the parent process can communicate
+  * back and forth. Fork a new process. 
+  * Input: 
+  * - Socket address structure of the connecting client's TCP socket
+  * - Debug flag
+*/
 void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag) {
-  
-
-  if (debugFlag) {
-    printf("clientTCPAddress port at start of handleTCPConnection: %d\n", ntohs(clientTCPAddress.sin_port));  
-  }
- 
-  // Find available space for new client
-  int availableConnectedClient = findEmptyConnectedClient(debugFlag); 
-  if (availableConnectedClient == -1) {
+  // Find available space in the connectedClients array for the new client
+  int availableConnectedClient = findEmptyConnectedClient(debugFlag); // Find space
+  if (availableConnectedClient == -1) {                               // No space
     printf("Error: server cannot handle any additional clients");
     exit(1);
   }
@@ -331,27 +348,24 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
   }
 
   // Initialize the new client
-  connectedClients[availableConnectedClient].socketTcpAddress = clientTCPAddress;
-  connectedClients[availableConnectedClient].serverParentToChildPipe;
-  connectedClients[availableConnectedClient].serverChildToParentPipe;
+  connectedClients[availableConnectedClient].socketTcpAddress = clientTCPAddress; // TCP socket address structure
+  connectedClients[availableConnectedClient].serverParentToChildPipe;             // Parent to child pipe
+  connectedClients[availableConnectedClient].serverChildToParentPipe;             // Child to parent pipe
 
   // Setup pipes
-  pipe(connectedClients[availableConnectedClient].serverParentToChildPipe);
-  pipe(connectedClients[availableConnectedClient].serverChildToParentPipe);
+  pipe(connectedClients[availableConnectedClient].serverParentToChildPipe);       // Parent to child pipe
+  pipe(connectedClients[availableConnectedClient].serverChildToParentPipe);       // Child to parent pipe
 
   // Fork a new process for the client
   pid_t processId;
-  if ((processId = fork()) == -1) {                         // Fork error
-    perror("Fork error"); 
+  if ((processId = fork()) == -1) { // Fork error
+    perror("Error when forking a process for a new client"); 
   }
-  else if (processId == 0) {                                // Child process
+  else if (processId == 0) {        // Child process
     close(connectedClients[availableConnectedClient].serverParentToChildPipe[1]);  // Close write on parent -> child.
     close(connectedClients[availableConnectedClient].serverChildToParentPipe[0]);  // Close read on child -> parent.
 
-    //char dataFromParent[100];
-    //char test[100];
-    char* dataFromParent = malloc(100);
-    char* test = malloc(100);
+    char* dataFromParent = malloc(100); // Space for data coming sent from parent
     int bytesFromParent = 0;
 
     uint8_t clientConnected = 1;
