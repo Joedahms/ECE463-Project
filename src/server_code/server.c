@@ -108,7 +108,6 @@ int main(int argc, char* argv[]) {
         break;
 
       case 4:   // Get command
-        printf("here\n");
         for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
           unsigned long currentConnectedClientUdpAddress;
           unsigned short currentConnectedClientUdpPort;
@@ -120,7 +119,7 @@ int main(int argc, char* argv[]) {
           if (currentConnectedClientUdpPort != ntohs(clientUDPAddress.sin_port)) {
             continue;
           }
-          write(connectedClients[i].serverParentToChildPipe[1], "test", 5);
+          write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));
         }
         break;
 
@@ -175,7 +174,6 @@ void shutdownServer(int signal) {
   * - 0: There is data waiting to be read
   * - 1: No data waiting to be read
 */
-
 int handleErrorNonBlocking(int returnValue) {
   if (returnValue == -1) {                          // Error
     if (errno == EAGAIN || errno == EWOULDBLOCK) {  // Errors occuring from no message on non blocking socket
@@ -350,8 +348,10 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
     close(connectedClients[availableConnectedClient].serverParentToChildPipe[1]);  // Close write on parent -> child.
     close(connectedClients[availableConnectedClient].serverChildToParentPipe[0]);  // Close read on child -> parent.
 
-    char dataFromParent[100];
-    char test[100];
+    //char dataFromParent[100];
+    //char test[100];
+    char* dataFromParent = malloc(100);
+    char* test = malloc(100);
     int bytesFromParent = 0;
 
     uint8_t clientConnected = 1;
@@ -359,8 +359,56 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
 
     while (1) {
       // Check for command from parent thru pipe
-      bytesFromParent = read(connectedClients[availableConnectedClient].serverParentToChildPipe[0], dataFromParent, sizeof(dataFromParent));
-      printf("%s\n", dataFromParent);
+      //bytesFromParent = read(connectedClients[availableConnectedClient].serverParentToChildPipe[0], dataFromParent, sizeof(dataFromParent));
+      bytesFromParent = read(connectedClients[availableConnectedClient].serverParentToChildPipe[0], dataFromParent, 100);
+      char* fileContents = malloc(100000);
+      if (strncmp(dataFromParent, "%get ", 5) == 0) {
+        
+          dataFromParent += 5;
+          char* fileName = malloc(1000);
+          strncpy(fileName, dataFromParent, strlen(dataFromParent));
+
+
+          // Open the file
+          int fileDescriptor;
+          printf("Opening file %s...\n", fileName);
+          fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
+          if (fileDescriptor == -1) {
+            char* errorMessage = malloc(1024);
+            strcpy(errorMessage, strerror(errno));
+            printf("Failed to open file \"%s\" with error %s\n", fileName, errorMessage);
+            exit(1);
+          }
+          printf("File %s opened\n", fileName);
+
+          // Get the size of the file in bytes
+          struct stat fileInformation;
+          if (stat(fileName, &fileInformation) == -1) {
+            printf("Stat Error\n");
+            exit(1);
+          };
+          unsigned long int fileSize = fileInformation.st_size;
+          printf("%s is %ld bytes\n", fileName, fileSize);
+
+          // Read out the contents of the file
+          printf("Reading file...\n");
+          ssize_t bytesReadFromFile = 0;
+          bytesReadFromFile = read(fileDescriptor, fileContents , fileSize);
+          if (bytesReadFromFile == -1) {            // read failed()
+            char* errorMessage = malloc(1024);
+            strcpy(errorMessage, strerror(errno));
+            printf("Failed to read file \"%s\" with error %s\n", fileName, errorMessage);
+            exit(1);
+          }
+          else {
+            printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
+          }
+        }
+      
+        // Send the file contents
+        printf("Sending packet...\n");
+        int bytesSent = sendBytes(connectedTCPSocketDescriptor, fileContents, strlen(fileContents), debugFlag);
+        printf("%d byte packet sent\n", bytesSent);
     }
     exit(0);
   }

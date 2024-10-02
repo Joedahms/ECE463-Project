@@ -77,6 +77,8 @@ int main(int argc, char* argv[]) {
 
     sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input via UDP
 
+      getCommand();
+
     /*
     struct sockaddr_in udpAddress;
     socklen_t udpAddressLength = sizeof(udpAddress);
@@ -100,7 +102,7 @@ int main(int argc, char* argv[]) {
       putCommand();
     }
     else {                                     // Receive file contents (get)
-      getCommand();
+      //getCommand();
     }
   }
 	return 0;
@@ -129,6 +131,9 @@ int checkForValidCommand(char* userInput, const char** validCommands) {
   for (i = 0; i < NUMBER_VALID_COMMANDS; i++) {         // Loop thru the valid commands
     if (strncmp(userInput, validCommands[i], 5) == 0) { // If the user entered a valid command
       if (strlen(&userInput[5]) > 0) {                  // User entered a file name following the command
+        if (strncmp(userInput, "%get ", 5) == 0) {
+          return 1;
+        }
         int fileAccess = access(&userInput[5], F_OK);   // Check if the file exists
         if (fileAccess == -1) {                         // File does not exist
           perror("File access error");
@@ -169,6 +174,19 @@ void putCommand() {
 }
 
 void getCommand() {
+  printf("here\n");
+  char* buffer = malloc(100000);
+  int bufferSize = 100000;
+  //fcntl(tcpSocketDescriptor, F_SETFL, O_NONBLOCK);
+  int numberOfBytesReceived;
+  numberOfBytesReceived = recv(tcpSocketDescriptor, buffer, bufferSize, 0);
+    printf("%d\n", numberOfBytesReceived);
+    //if (numberOfBytesReceived == -1) {
+     // break;
+    //}
+  
+  printf("%s\n", buffer);
+  printf("here2\n");
   //char* buffer2 = malloc(100);
   //receiveBytes(tcpSocketDescriptor, buffer2, strlen(buffer2), debugFlag);
 }
