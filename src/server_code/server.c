@@ -108,6 +108,20 @@ int main(int argc, char* argv[]) {
         break;
 
       case 4:   // Get command
+        printf("here\n");
+        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
+          unsigned long currentConnectedClientUdpAddress;
+          unsigned short currentConnectedClientUdpPort;
+          currentConnectedClientUdpAddress = ntohl(connectedClients[i].socketUdpAddress.sin_addr.s_addr);
+          currentConnectedClientUdpPort = ntohs(connectedClients[i].socketUdpAddress.sin_port);
+          if (currentConnectedClientUdpAddress != ntohl(clientUDPAddress.sin_addr.s_addr)) {
+            continue;
+          }
+          if (currentConnectedClientUdpPort != ntohs(clientUDPAddress.sin_port)) {
+            continue;
+          }
+          write(connectedClients[i].serverParentToChildPipe[1], "test", 5);
+        }
         break;
 
       case 5:   // Invalid command
@@ -135,91 +149,6 @@ int main(int argc, char* argv[]) {
       }
     }
   }
-
-      /*
-      {
-        if (strncmp(&message[1], "put", 3) == 0) {        // %put
-          printf("Received put command\n");
-          printf("Forking new process\n");
-
-            int totalBytesReceived = 0;
-            char* buffer = malloc(100);
-
-
-            while(clientConnected) {
-              while (totalBytesReceived = recv(connectedTCPSocketDescriptor, buffer, 100, 0)) { // Constantly check the socket for data
-                if (debugFlag) {
-                  printf("%d\n", totalBytesReceived);
-                }
-                if (totalBytesReceived != -1) { // Something was actually received or client closed connection
-                  break;
-                }
-              }
-              
-              if (totalBytesReceived == 0) {
-                printf("Client connection closed\n");
-                clientConnected = 0;
-              }
-              else {
-                printf("%s\n", buffer);
-              }
-            }
-        }
-        else if (strncmp(&message[1], "get", 3) == 0) {
-          printf("Received get command\n");
-        }
-        else {                                            // Invalid command
-          printf("Received invalid command\n");
-        }
-        exit(0);
-      }
-      */
-    /*
-    else {                                              // Message was plain text
-      printf("Message received was a plain text message\n");
-    }
-    memset(&message[0], 0, INITIAL_MESSAGE_SIZE);       // Clear out message buffer
-    */
-
-    
-   
-
- /* 
-    // Accept the incoming connection
-    printf("Listening for connections...\n");
-    incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
-    printf("Connection accepted\n");
-    printf("Listening for data...\n");
-    
-    if ((processId = fork()) == 0) {
-      close(socketDescriptor); 
-      uint8_t clientAlive = 1;
-
-      // Process incoming data
-//      char* incomingFileName = malloc(FILE_NAME_SIZE);      // Space for file name
-      fcntl(incomingSocketDescriptor, F_SETFL, O_NONBLOCK); // Set socket to non blocking (will return if no data available)
-      int receivePacketReturn;
-
-      while(clientAlive) {
-        char* incomingFileName = malloc(FILE_NAME_SIZE);      // Space for file name
-        receivePacketReturn = receivePacket(incomingSocketDescriptor, incomingFileName, FILE_NAME_SIZE, serverPacketFields, debugFlag);
-        switch (receivePacketReturn) {
-          case 0: // get command
-            sendPacket(incomingFileName, incomingSocketDescriptor, serverPacketFields, serverPacketFields.putCommand, debugFlag); // Send back the requested file
-            break;
-          case 1: // Client connection closed
-            clientAlive = 0;
-            break;
-          default:  // put command or error (need to improve)
-            break;
-        }
-      }
-
-      printf("Connection terminated\n");
-      exit(0);
-    }
-    close(incomingSocketDescriptor);
-  */
   return 0;
 }
 
@@ -421,15 +350,14 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
     close(connectedClients[availableConnectedClient].serverParentToChildPipe[1]);  // Close write on parent -> child.
     close(connectedClients[availableConnectedClient].serverChildToParentPipe[0]);  // Close read on child -> parent.
 
-    // char* dataFromParent = malloc(100);
-    // char* test = malloc(100);
     char dataFromParent[100];
     char test[100];
     int bytesFromParent = 0;
 
     uint8_t clientConnected = 1;
     int i;
-    for(i = 0; i < 10; i++) {
+
+    while (1) {
       // Check for command from parent thru pipe
       bytesFromParent = read(connectedClients[availableConnectedClient].serverParentToChildPipe[0], dataFromParent, sizeof(dataFromParent));
       printf("%s\n", dataFromParent);
