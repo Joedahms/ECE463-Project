@@ -369,9 +369,9 @@ int receivePacket(int incomingSocketDescriptor, char* fileName, int fileNameSize
  * Name: checkStringForCommand
  * Purpose: Check if a string has a command in it
  * Input: String that might have a command
- * Ouptut:
- * 1: String contains a command
- * 0: String does not contain a command
+ * Ouptut: 
+ * - 0: String is not a command
+ * - 1: String is a command
  */
 int checkStringForCommand(const char* userInput) {
   if (userInput[0] == '%') {  // Check first character for '%'
@@ -382,9 +382,12 @@ int checkStringForCommand(const char* userInput) {
   }
 }
 
-void printReceivedMessage(int bytesReceived, char* message, uint8_t debugFlag) {
+void printReceivedMessage(struct sockaddr_in sender, int bytesReceived, char* message, uint8_t debugFlag) {
   if (debugFlag) {
-    printf("Received %d byte message:\n%s\n", bytesReceived, message);
+    unsigned long senderAddress = ntohl(sender.sin_addr.s_addr);
+    unsigned short senderPort = ntohs(sender.sin_port);
+    printf("Received %d byte message from %ld:%d:\n", bytesReceived, senderAddress, senderPort);
+    printf("%s\n", message);
   }
   else {
     printf("Received %d byte message\n", bytesReceived);

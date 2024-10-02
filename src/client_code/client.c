@@ -42,6 +42,25 @@ int main(int argc, char* argv[]) {
   printf("Making TCP connection to %s...\n", nodeName);
   tcpSocketDescriptor = networkNodeConnect(nodeName, tcpSocketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
 
+  struct sockaddr_in tcpAddress;
+  socklen_t tcpAddressLength = sizeof(tcpAddress);
+  getsockname(tcpSocketDescriptor, (struct sockaddr *)&tcpAddress, &tcpAddressLength);
+  printf("tcp port: %d\n", ntohs(tcpAddress.sin_port));
+  
+  // Send $address=tcpAddress.sin_addr.s_addr$port=tcpAddress.sin_port
+  char* tcpAddressMessage = malloc(1000);
+  strcpy(tcpAddressMessage, "$address=");
+  char* address = malloc(60);
+  snprintf(address, 60, "%d", ntohl(tcpAddress.sin_addr.s_addr));
+  strncat(tcpAddressMessage, address, strlen(address));
+  printf("tcpAddressMessage: %s\n", tcpAddressMessage);
+  strcat(tcpAddressMessage, "$port=");
+  char* port = malloc(60);
+  snprintf(port, 60, "%d", ntohs(tcpAddress.sin_port));
+  strncat(tcpAddressMessage, port, strlen(port));
+  printf("tcpAddressMessage: %s\n", tcpAddressMessage);
+  sendUdpMessage(serverAddress, tcpAddressMessage, debugFlag);
+
   const char* validCommands[NUMBER_VALID_COMMANDS];
   validCommands[0] = "%put ";
   validCommands[1] = "%get ";
@@ -57,6 +76,14 @@ int main(int argc, char* argv[]) {
     }
 
     sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input via UDP
+
+    /*
+    struct sockaddr_in udpAddress;
+    socklen_t udpAddressLength = sizeof(udpAddress);
+    getsockname(udpSocketDescriptor, (struct sockaddr *)&udpAddress, &udpAddressLength);
+
+    printf("udp port: %d\n", ntohs(udpAddress.sin_port));
+*/
 
     if (checkStringForCommand(userInput) == 0) {          // User entered plain text message
       continue;
@@ -142,8 +169,8 @@ void putCommand() {
 }
 
 void getCommand() {
-  char* buffer2 = malloc(100);
-  receiveBytes(tcpSocketDescriptor, buffer2, strlen(buffer2), debugFlag);
+  //char* buffer2 = malloc(100);
+  //receiveBytes(tcpSocketDescriptor, buffer2, strlen(buffer2), debugFlag);
 }
 
 

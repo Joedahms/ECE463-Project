@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
   // Array of connected client data structures
   int i; 
   for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
-    memset(&(connectedClients[i].socketAddress), 0, sizeof(connectedClients[i].socketAddress));
+    memset(&(connectedClients[i].socketTcpAddress), 0, sizeof(connectedClients[i].socketTcpAddress));
   }
 
   struct sockaddr_in serverAddress;
@@ -49,52 +49,88 @@ int main(int argc, char* argv[]) {
   setupUdpSocket(serverAddress);
   setupTcpSocket(serverAddress);
   
-  char message[INITIAL_MESSAGE_SIZE];
+  char* message = malloc(INITIAL_MESSAGE_SIZE);
   
   int udpStatus;
   int tcpStatus;
   // Continously listen for new UDP packets
   int j = 0;
   while (1) {
-    udpStatus = checkUdpSocket(message, debugFlag);
+    udpStatus = checkUdpSocket(&clientUDPAddress, message, debugFlag);
     switch (udpStatus) {
       case 0:   // Nothing
         break;
 
-      case 1:   // Plain text
+      case 1:   // TCP/UDP relation info
+        // Message contains TCP address and port
+        //printf("%s\n", message);
+        message += 9;
+        char* tcpAddressString = malloc(20);
+        strncpy(tcpAddressString, message, 10);
+        //printf("%s\n", tcpAddressString);
+        message += 16;
+        char* tcpPortString = malloc(20);
+        strncpy(tcpPortString, message, 5);
+        //printf("%s\n", tcpPortString);
+
+        long tcpAddressInteger = strtol(tcpAddressString, NULL, 10);
+        long tcpPortInteger = strtol(tcpPortString, NULL, 10);
+
+        int i; 
+        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
+          unsigned long connectedClientAddress = ntohl(connectedClients[i].socketTcpAddress.sin_addr.s_addr);
+          unsigned short connectedClientPort = ntohs(connectedClients[i].socketTcpAddress.sin_port);
+
+          if (tcpAddressInteger == connectedClientAddress && tcpPortInteger == connectedClientPort) {
+            connectedClients[i].socketUdpAddress.sin_addr.s_addr = clientUDPAddress.sin_addr.s_addr;
+            connectedClients[i].socketUdpAddress.sin_port = clientUDPAddress.sin_port;
+            break;
+          }
+        }
+
+        printAllConnectedClients();
         break;
 
-      case 2:   // Put command
+      case 2:   // Plain text
         break;
 
-      case 3:   // Get command
+      case 3:   // Put command
+        /*
+        printf("UDP Address: %d\n", ntohl(clientUDPAddress.sin_addr.s_addr));
+        printf("UDP Port: %d\n", ntohs(clientUDPAddress.sin_port));
+
+        printf("TCP Address: %d\n", ntohl(connectedClients[0].socketTcpAddress.sin_addr.s_addr));
+        printf("TCP Port: %d\n", ntohs(connectedClients[0].socketTcpAddress.sin_port));
+
+        int incomingPort = ntohs(clientUDPAddress.sin_port);
+        printf("Incoming get command from port: %d\n", incomingPort);
+        */
         break;
 
-      case 4:   // Invalid command
+      case 4:   // Get command
+        break;
+
+      case 5:   // Invalid command
         break;
 
       default:
         
     }
+
     tcpStatus = checkTcpSocket(&clientTCPAddress, debugFlag);
     if (tcpStatus == 0) { // No data to be read
       ; 
     }
     else {                // Data to be read
-      if (debugFlag) {
-        printf("main port: %d\n", ntohs(clientTCPAddress.sin_port));
-      }
-
       handleTcpConnection(clientTCPAddress, debugFlag);
 
       if (debugFlag) {
+        printf("\ncc0 port: %d\n", ntohs(connectedClients[0].socketTcpAddress.sin_port));
+        printf("cc0 address: %d\n", connectedClients[0].socketTcpAddress.sin_addr.s_addr);
+        printf("cc0 pid: %d\n", connectedClients[0].processId);
 
-        printf("cc0 port: %d\n", ntohs(connectedClients[0].socketAddress.sin_port));
-        printf("cc0 address: %d\n", connectedClients[0].socketAddress.sin_addr.s_addr);
-        printf("cc0 pid: %d\n\n", connectedClients[0].processId);
-
-        printf("cc1 port: %d\n", ntohs(connectedClients[1].socketAddress.sin_port));
-        printf("cc1 address: %d\n", connectedClients[1].socketAddress.sin_addr.s_addr);
+        printf("cc1 port: %d\n", ntohs(connectedClients[1].socketTcpAddress.sin_port));
+        printf("cc1 address: %d\n", connectedClients[1].socketTcpAddress.sin_addr.s_addr);
         printf("cc1 pid: %d\n\n", connectedClients[1].processId);
       }
     }
@@ -282,9 +318,26 @@ void setupTcpSocket(struct sockaddr_in serverAddress) {
   }
 }
 
+/*
+  * Name: checkUdpSocket
+  * Purpose: Check if there is an incoming message on a UDP port. If there is then
+  * return an integer depending on the type of message
+  * Input:
+  * - Address of the UDP port that is receiving messages.
+  * - Buffer to read message into
+  * - Debug flag
+  * Output: 
+  * - 0: No incoming packets
+  * - 1: Information about the UDP/TCP info relationship on the clien
+  * - 2: Plain text message
+  * - 3: Put command
+  * - 4: Get command
+  * - 5: Invalid command
+*/
 // Check to see if any messages queued at UDP socket
-int checkUdpSocket(char* message, uint8_t debugFlag) {
-  int bytesReceived = recvfrom(listeningUDPSocketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, 0, 0);
+int checkUdpSocket(struct sockaddr_in* incomingAddress, char* message, uint8_t debugFlag) {
+  socklen_t incomingAddressLength = sizeof(incomingAddress);
+  int bytesReceived = recvfrom(listeningUDPSocketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, (struct sockaddr *)incomingAddress, &incomingAddressLength);
   int nonBlockingReturn = handleErrorNonBlocking(bytesReceived);
 
   if (nonBlockingReturn == 1) {                 // No incoming packets
@@ -292,22 +345,26 @@ int checkUdpSocket(char* message, uint8_t debugFlag) {
   }
   
   // Print out UDP message
-  printReceivedMessage(bytesReceived, message, debugFlag); 
+  printReceivedMessage(*incomingAddress, bytesReceived, message, debugFlag); 
 
-  if (checkStringForCommand(message) == 0) {    // Message is plain text
-    return 1;                                   // return 1
+  if (strncmp(message, "$address=", 9) == 0) {  // Received info about TCP/UDP relation
+    printf("Received TCP/UDP relation info\n");
+    return 1;
+  }
+  else if (checkStringForCommand(message) == 0) {    // Message is plain text
+    return 2;                                   // return 1
   }
   else if (strncmp(message, "%put ", 5) == 0) { // Received put command
     printf("Received put command\n"); 
-    return 2;                                   // Return 2
+    return 3;                                   // Return 2
   }
   else if (strncmp(message, "%get ", 5) == 0) { // Received get command
     printf("Received get command\n");
-    return 3;                                   // Return 3
+    return 4;                                       // Return 3
   }
-  else {                                        // Received invalid command
+  else {                                            // Received invalid command
     printf("Received invalid command\n");
-    return 4;                                   // Return 4
+    return 5;                                       // Return 4
   }
 }
 
@@ -330,6 +387,8 @@ int checkTcpSocket(struct sockaddr_in* incomingAddress, uint8_t debugFlag) {
 }
 
 void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag) {
+  
+
   if (debugFlag) {
     printf("clientTCPAddress port at start of handleTCPConnection: %d\n", ntohs(clientTCPAddress.sin_port));  
   }
@@ -345,7 +404,7 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
   }
 
   // Initialize the new client
-  connectedClients[availableConnectedClient].socketAddress = clientTCPAddress;
+  connectedClients[availableConnectedClient].socketTcpAddress = clientTCPAddress;
   connectedClients[availableConnectedClient].serverParentToChildPipe;
   connectedClients[availableConnectedClient].serverChildToParentPipe;
 
@@ -393,7 +452,7 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
 int findEmptyConnectedClient(uint8_t debugFlag) {
   int i;
   for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
-    int port = ntohs(connectedClients[i].socketAddress.sin_port);
+    int port = ntohs(connectedClients[i].socketTcpAddress.sin_port);
     if (port == 0) {
       return i;
       if (debugFlag) {
@@ -407,4 +466,27 @@ int findEmptyConnectedClient(uint8_t debugFlag) {
     }
   }
   return -1;
+}
+
+void printAllConnectedClients() {
+  printf("\n*** PRINTING ALL CONNECTED CLIENTS ***\n");
+  int i;
+  unsigned long udpAddress;
+  unsigned short udpPort;
+  unsigned long tcpAddress;
+  unsigned short tcpPort;
+  for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
+    udpAddress = ntohl(connectedClients[i].socketUdpAddress.sin_addr.s_addr);
+    udpPort = ntohs(connectedClients[i].socketUdpAddress.sin_port);
+    tcpAddress = ntohl(connectedClients[i].socketTcpAddress.sin_addr.s_addr);
+    tcpPort = ntohs(connectedClients[i].socketTcpAddress.sin_port);
+    if (udpAddress == 0 && udpPort == 0 && tcpAddress == 0 && tcpPort == 0) {
+      continue;
+    }
+    printf("CONNECTED CLIENT %d\n", i);
+    printf("UDP ADDRESS: %ld\n", udpAddress);
+    printf("UDP PORT: %d\n", udpPort);
+    printf("TCP ADDRESS: %ld\n", tcpAddress);
+    printf("TCP PORT: %d\n\n", tcpPort);
+  }
 }
