@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 
   // Continously listen for new UDP packets and new TCP connections
   while (1) {
-    udpStatus = checkUdpSocket(&clientUDPAddress, message, debugFlag);  // Check the UDP socket
+    udpStatus = checkUdpSocket(listeningUDPSocketDescriptor, &clientUDPAddress, message, debugFlag);  // Check the UDP socket
     switch (udpStatus) {
       case 0:   // Nothing
         break;
@@ -98,7 +98,10 @@ int main(int argc, char* argv[]) {
         break;  // Break case 1
 
       case 2:   // Plain text
-                // Handle plain text here
+        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {     // Loop through all connected clients
+          // Send plain text to all connected clients
+          write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));  
+        }
         break;  // Break case 2
 
       case 3:   // Put command
@@ -266,56 +269,7 @@ void setupTcpSocket(struct sockaddr_in serverAddress) {
   }
 }
 
-/*
-  * Name: checkUdpSocket
-  * Purpose: Check if there is an incoming message on a UDP port. If there is then
-  * return an integer depending on the type of message
-  * Input:
-  * - Address of the UDP port that is receiving messages.
-  * - Buffer to read message into
-  * - Debug flag
-  * Output: 
-  * - 0: No incoming packets
-  * - 1: Information about the UDP/TCP info relationship on the clien
-  * - 2: Plain text message
-  * - 3: Put command
-  * - 4: Get command
-  * - 5: Invalid command
-*/
-int checkUdpSocket(struct sockaddr_in* incomingAddress, char* message, uint8_t debugFlag) {
-  // Check for incoming messages
-  socklen_t incomingAddressLength = sizeof(incomingAddress);
-  int bytesReceived = recvfrom(listeningUDPSocketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, (struct sockaddr *)incomingAddress, &incomingAddressLength);
-  int nonBlockingReturn = handleErrorNonBlocking(bytesReceived);
 
-  if (nonBlockingReturn == 1) {                 // No incoming messages
-    return 0;                                   // Return 0
-  }
-  
-  // Print out UDP message
-  printReceivedMessage(*incomingAddress, bytesReceived, message, debugFlag); 
-
-  if (strncmp(message, "$address=", 9) == 0) {    // Received info about TCP/UDP relation
-    printf("Received TCP/UDP relation info\n");
-    return 1;                                     // Return 1
-  }
-  else if (checkStringForCommand(message) == 0) { // Message is plain text
-    printf("Received plain text\n");
-    return 2;                                     // return 2
-  }
-  else if (strncmp(message, "%put ", 5) == 0) {   // Received put command
-    printf("Received put command\n"); 
-    return 3;                                     // Return 3
-  }
-  else if (strncmp(message, "%get ", 5) == 0) {   // Received get command
-    printf("Received get command\n");
-    return 4;                                     // Return 4
-  }
-  else {                                          // Received invalid command
-    printf("Received invalid command\n");
-    return 5;                                     // Return 5
-  }
-}
 
 /*
   * Name: checkTcpSocket
@@ -423,6 +377,9 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
 
         int bytesReceived = receiveBytes(connectedTCPSocketDescriptor, fileContents, MAX_FILE_SIZE, debugFlag);
         int writeFileReturn = writeFile(fileName, fileContents, strlen(fileContents));
+      }
+      else {                                                              // Plain text message
+        sendUdpMessage(listeningUDPSocketDescriptor, connectedClients[availableConnectedClient].socketUdpAddress, dataFromParent, debugFlag); 
       }
     }         // End while(1)
     exit(0);

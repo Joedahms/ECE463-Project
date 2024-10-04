@@ -26,6 +26,7 @@ char* packetAppend(char*, const char*, const char*);
 
 int receiveBytes(int, char*, int, uint8_t);
 int sendBytes(int, const char*, unsigned long int, uint8_t);
+void sendUdpMessage(int, struct sockaddr_in, char*, uint8_t);
 
 int checkStringForCommand(const char*);
 
@@ -35,5 +36,7 @@ int readFile(char*, char*, uint8_t);
 int writeFile(char*, char*, size_t);
 
 void fileNameFromCommand(char*, char*);
+
+int checkUdpSocket(int, struct sockaddr_in*, char*, uint8_t);
 
 #endif

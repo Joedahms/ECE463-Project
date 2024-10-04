@@ -117,6 +117,36 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
 }
 
 /*
+  * Name: sendUdpMessage
+  * Purpose: Send a message via UDP
+  * Input: 
+  * - Socket address to send the message to
+  * - The message to send
+  * - Debug flag
+  * Output: None
+*/
+void sendUdpMessage(int udpSocketDescriptor, struct sockaddr_in destinationAddress, char* message, uint8_t debugFlag) {
+  if (debugFlag) {
+    printf("Sending UDP message:\n");
+    printf("%s\n", message);
+  }
+  else {
+    printf("Sending UDP message...\n"); 
+  }
+
+  // Send message to destinationAddress over udpSocketDescriptor
+  int sendtoReturnValue = 0;
+  sendtoReturnValue = sendto(udpSocketDescriptor, message, strlen(message), 0, (struct sockaddr *)&destinationAddress, sizeof(destinationAddress));
+  if (sendtoReturnValue == -1) {
+    perror("UDP send error");
+    exit(1);
+  }
+  else {
+    printf("UDP message sent\n");
+  }
+}
+
+/*
  * Name: checkStringForCommand
  * Purpose: Check if a string has a command in it
  * Input: String that might have a command
@@ -243,3 +273,53 @@ void fileNameFromCommand(char* userInput, char* fileName) {
   strcpy(fileName, tempUserInput);
 }
 
+/*
+  * Name: checkUdpSocket
+  * Purpose: Check if there is an incoming message on a UDP port. If there is then
+  * return an integer depending on the type of message
+  * Input:
+  * - Address of the UDP port that is receiving messages.
+  * - Buffer to read message into
+  * - Debug flag
+  * Output: 
+  * - 0: No incoming packets
+  * - 1: Information about the UDP/TCP info relationship on the clien
+  * - 2: Plain text message
+  * - 3: Put command
+  * - 4: Get command
+  * - 5: Invalid command
+*/
+int checkUdpSocket(int listeningUDPSocketDescriptor, struct sockaddr_in* incomingAddress, char* message, uint8_t debugFlag) {
+  // Check for incoming messages
+  socklen_t incomingAddressLength = sizeof(incomingAddress);
+  int bytesReceived = recvfrom(listeningUDPSocketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, (struct sockaddr *)incomingAddress, &incomingAddressLength);
+  int nonBlockingReturn = handleErrorNonBlocking(bytesReceived);
+
+  if (nonBlockingReturn == 1) {                 // No incoming messages
+    return 0;                                   // Return 0
+  }
+  
+  // Print out UDP message
+  printReceivedMessage(*incomingAddress, bytesReceived, message, debugFlag); 
+
+  if (strncmp(message, "$address=", 9) == 0) {    // Received info about TCP/UDP relation
+    printf("Received TCP/UDP relation info\n");
+    return 1;                                     // Return 1
+  }
+  else if (checkStringForCommand(message) == 0) { // Message is plain text
+    printf("Received plain text\n");
+    return 2;                                     // return 2
+  }
+  else if (strncmp(message, "%put ", 5) == 0) {   // Received put command
+    printf("Received put command\n"); 
+    return 3;                                     // Return 3
+  }
+  else if (strncmp(message, "%get ", 5) == 0) {   // Received get command
+    printf("Received get command\n");
+    return 4;                                     // Return 4
+  }
+  else {                                          // Received invalid command
+    printf("Received invalid command\n");
+    return 5;                                     // Return 5
+  }
+}

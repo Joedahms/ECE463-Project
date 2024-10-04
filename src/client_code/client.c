@@ -58,41 +58,72 @@ int main(int argc, char* argv[]) {
   // Send the local TCP connection info to the server
   sendTcpAddress(serverAddress, tcpAddress, debugFlag);
 
+
+  fd_set rfds;
+  struct timeval tv;
+  int retval, len;
+  char buff[255] = {0};
+
+  /* Watch stdin (fd 0) to see when it has input. */
+  FD_ZERO(&rfds);
+  FD_SET(0, &rfds);
+
+  /* Wait up to 1 seconds. */
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+
+  char* message = malloc(1000);
+  struct sockaddr_in address;
+
   // Constantly check user input
   while(1) {
-    // Get user input and store in userInput buffer
-    char* userInput = malloc(USER_INPUT_BUFFER_LENGTH);
-    getUserInput(userInput);
 
-    // User just pressed return
-    if (strlen(userInput) == 0) {  
-      continue;
-    }
+    retval = select(1, &rfds, NULL, NULL, &tv);
 
-    if (checkStringForCommand(userInput) == 0) {            // User entered plain text message
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input via UDP
-      continue;
+    if (retval == -1){
+        perror("select()");
+        exit(EXIT_FAILURE);
     }
+    else if (retval){
+      // Get user input and store in userInput buffer
+      char* userInput = malloc(USER_INPUT_BUFFER_LENGTH);
+      getUserInput(userInput);
 
-    if (checkForValidCommand(userInput) == 0) {             // Not a recognized command or an invalid file name
-      printf("Please enter a valid command:\n");
-      printf("%%put to send a file to the server\n");
-      printf("%%get to request a file from the server\n");
-      continue;
-    }
-
-    char* fileName = malloc(FILE_NAME_SIZE);
-    fileNameFromCommand(userInput, fileName);               // Extract the file name from the user input
-    
-    if (strncmp(userInput, "%put ", 5) == 0) {              // Put command
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
-      putCommand(fileName);                                 // Send the file
-    }
-    else {                                                  // Get command
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
-      if (getCommand(fileName) == -1) {                     // Receive the file
-        printf("Failed to get file\n");
+      // User just pressed return
+      if (strlen(userInput) == 0) {  
+        continue;
       }
+
+      if (checkStringForCommand(userInput) == 0) {            // User entered plain text message
+        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input via UDP
+        continue;
+      }
+
+      if (checkForValidCommand(userInput) == 0) {             // Not a recognized command or an invalid file name
+        printf("Please enter a valid command:\n");
+        printf("%%put to send a file to the server\n");
+        printf("%%get to request a file from the server\n");
+        continue;
+      }
+
+      char* fileName = malloc(FILE_NAME_SIZE);
+      fileNameFromCommand(userInput, fileName);               // Extract the file name from the user input
+      
+      if (strncmp(userInput, "%put ", 5) == 0) {              // Put command
+        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
+        putCommand(fileName);                                 // Send the file
+      }
+      else {                                                  // Get command
+        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
+        if (getCommand(fileName) == -1) {                     // Receive the file
+          printf("Failed to get file\n");
+        }
+      }
+    }
+    else {
+        printf("No data within five seconds.\n");            
+      checkUdpSocket(udpSocketDescriptor, address, message, debugFlag); 
+      printf("Message");
     }
   }
 	return 0;
@@ -151,35 +182,7 @@ int checkForValidCommand(char* userInput) {
   return 0;                                         // Invalid command, return 0
 }
 
-/*
-  * Name: sendUdpMessage
-  * Purpose: Send a message via UDP
-  * Input: 
-  * - Socket address to send the message to
-  * - The message to send
-  * - Debug flag
-  * Output: None
-*/
-void sendUdpMessage(struct sockaddr_in destinationAddress, char* message, uint8_t debugFlag) {
-  if (debugFlag) {
-    printf("Sending UDP message:\n");
-    printf("%s\n", message);
-  }
-  else {
-    printf("Sending UDP message...\n"); 
-  }
 
-  // Send message to destinationAddress over udpSocketDescriptor
-  int sendtoReturnValue = 0;
-  sendtoReturnValue = sendto(udpSocketDescriptor, message, strlen(message), 0, (struct sockaddr *)&destinationAddress, sizeof(destinationAddress));
-  if (sendtoReturnValue == -1) {
-    perror("UDP send error");
-    exit(1);
-  }
-  else {
-    printf("UDP message sent\n");
-  }
-}
 
 /*
   * Name:
