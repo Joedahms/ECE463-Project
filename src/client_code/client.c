@@ -143,7 +143,7 @@ int checkForValidCommand(char* userInput) {
     if (fileAccess == -1) {                         // File does not exist
       perror("File access error");
     }
-    return 0;                                       // Return 0
+    return 1;                                       // Return 0
   }
   if (strncmp(userInput, "%get ", 5) == 0) {        // User entered get
     return 1;                                       // Return 1
@@ -187,9 +187,13 @@ void sendUdpMessage(struct sockaddr_in destinationAddress, char* message, uint8_
   * Input: 
   * Output:
 */
-void putCommand(char* fileName) {
-  char* buffer = "Hello";
-  sendBytes(tcpSocketDescriptor, buffer, strlen(buffer), debugFlag);
+int putCommand(char* fileName) {
+  char* fileContents = malloc(MAX_FILE_SIZE);
+  int readFileReturn = readFile(fileName, fileContents, debugFlag);
+  if (readFileReturn == -1) {
+    printf("Put command error when reading file");
+  }
+  sendBytes(tcpSocketDescriptor, fileContents, strlen(fileContents), debugFlag);
 }
 
 /*

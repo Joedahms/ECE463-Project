@@ -102,7 +102,22 @@ int main(int argc, char* argv[]) {
         break;  // Break case 2
 
       case 3:   // Put command
-                // Handle put command here
+        // Check all connected clients to find which one sent the put command
+        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {     // Loop through all connected clients
+          unsigned long currentConnectedClientUdpAddress; // Connected client address
+          unsigned short currentConnectedClientUdpPort;   // Connected client port
+          currentConnectedClientUdpAddress = ntohl(connectedClients[i].socketUdpAddress.sin_addr.s_addr); // Set the address
+          currentConnectedClientUdpPort = ntohs(connectedClients[i].socketUdpAddress.sin_port);           // Set the port
+          if (currentConnectedClientUdpAddress != ntohl(clientUDPAddress.sin_addr.s_addr)) {  // If the address doesn't match
+            continue;                                                                         // Keep looking
+          }
+          if (currentConnectedClientUdpPort != ntohs(clientUDPAddress.sin_port)) {            // If address matches but the port doesn't
+            continue;                                                                         // Keep looking
+          }
+          // Address and port match
+          // Send command to child process associated with the client that sent the message
+          write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));  
+        }
         break;  // Break case 3
 
       case 4:   // Get command
@@ -381,7 +396,7 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
 
       if (strncmp(dataFromParent, "%get ", 5) == 0) {                     // If received a get command
         char* fileName = malloc(FILE_NAME_SIZE);                          // Space for the file name
-        fileNameFromCommand(dataFromParent, fileName);                    // Extract the file name from the send command
+        fileNameFromCommand(dataFromParent, fileName);                    // Extract the file name from the sent command
 
         int readFileReturn = readFile(fileName, fileContents, debugFlag); // Read the contents of the file into the buffer
         if (readFileReturn != -1) {
@@ -400,6 +415,15 @@ void handleTcpConnection(struct sockaddr_in clientTCPAddress, uint8_t debugFlag)
           printf("Error reading file for get request\n");
         }
       }       // End if (get)
+      else if (strncmp(dataFromParent, "%put ", 5) == 0) {                // If receive put command
+        char* fileName = malloc(FILE_NAME_SIZE);                          // Space for the file name
+        fileNameFromCommand(dataFromParent, fileName);                    // Extract the file name from the sent command
+
+        char* fileContents = malloc(MAX_FILE_SIZE);
+
+        int bytesReceived = receiveBytes(connectedTCPSocketDescriptor, fileContents, MAX_FILE_SIZE, debugFlag);
+        int writeFileReturn = writeFile(fileName, fileContents, strlen(fileContents));
+      }
     }         // End while(1)
     exit(0);
   }           // End child process

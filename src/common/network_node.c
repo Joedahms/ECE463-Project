@@ -238,8 +238,8 @@ int writeFile(char* fileName, char* fileContents, size_t fileSize) {
   * Output: None
 */
 void fileNameFromCommand(char* userInput, char* fileName) {
-  userInput += 5;
-  strcpy(fileName, userInput);
-  userInput -= 5;
+  char* tempUserInput = userInput;
+  tempUserInput += 5;
+  strcpy(fileName, tempUserInput);
 }
 
