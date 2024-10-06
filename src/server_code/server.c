@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -14,168 +13,155 @@
 #include "../common/network_node.h"
 #include "server.h"
 
-// Global flags
-uint8_t debugFlag = 0;  // Can add conditional statements with this flag to print out extra info
+// Max number of clients we will support
+#define MAX_CLIENTS 100
+#define MAX_FILENAME_SIZE 50
+#define MAX_FILE_CONTENTS 1024
 
-// Global variables (for signal handler)
-//struct addrinfo* serverAddressInfo;
+// Global variables
 int socketDescriptor;
 struct sockaddr_in serverAddress;
-//struct sockaddr_in clientAddress;
-//int incomingSocketDescriptor;
-//socklen_t clientAddressLength = sizeof(clientAddress);
+
+// Storage for uploaded files
+char storedFiles[MAX_CLIENTS][MAX_FILENAME_SIZE];  // File names
+char storedContents[MAX_CLIENTS][MAX_FILE_CONTENTS];  // File contents
+int storedFileCount = 0;
+
+// Client address storage
+struct sockaddr_in client_addresses[MAX_CLIENTS];
+socklen_t client_address_lengths[MAX_CLIENTS];
+int client_count = 0;
 
 // Forward declarations
 void shutdownServer(int);
+void handle_put_command(char* message, struct sockaddr_in* client_addr, socklen_t addr_len);
+void handle_get_command(char* filename, struct sockaddr_in* client_addr, socklen_t addr_len);
+void broadcast_message(char* message, struct sockaddr_in* sender_addr);
+void add_client(struct sockaddr_in* client_addr, socklen_t addr_len);
 
-// Main fucntion
+// Main function
 int main(int argc, char* argv[]) {
-  // Assign callback function for Ctrl-c
-  signal(SIGINT, shutdownServer);
+    signal(SIGINT, shutdownServer);
 
-  // Set up server sockaddr_in data structure
-  serverAddress.sin_family = AF_INET;
-  serverAddress.sin_addr.s_addr = INADDR_ANY;
-  serverAddress.sin_port = htons(PORT);
+    // Set up server sockaddr_in data structure
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr = INADDR_ANY;
+    serverAddress.sin_port = htons(PORT);
 
-/*
-  packetFields serverPacketFields;
-  serverPacketFields.delimiter = "delimFlag";
-  serverPacketFields.messageBegin = "messageBegin";
-  serverPacketFields.messageEnd = "messageEnd";
-  serverPacketFields.putCommand = "put";
-  serverPacketFields.getCommand = "get";
-*/
-  
-  // Check how many command line arguments passed
-	switch (argc) {
-		case 1:
-			printf("Running server in normal mode\n");
-			break;
-		case 2:
-			if (strcmp(argv[1], "-d") == 0) {
-				debugFlag = 1;
-				printf("Running server in debug mode\n");
-			}
-			break;
-		default:
-	}
-
-  /*
-	int status;
-	struct addrinfo hints;
-
-	hints.ai_family = AF_INET;        // IPV4
-	hints.ai_socktype = SOCK_STREAM;  // TCP
-	hints.ai_protocol = 0;            // Any protocol
-	hints.ai_flags = AI_PASSIVE;      // If node is null, will bind to IP of host
-	
-  // Port 3940
-	int getaddrinfoReturnValue;
-	getaddrinfoReturnValue = getaddrinfo(NULL, "3940", &hints, &serverAddressInfo);
-	if (getaddrinfoReturnValue != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(getaddrinfoReturnValue));	
-		exit(EXIT_FAILURE);
-	}
-  */
-  
-  // Set up socket
-  printf("Setting up socket...\n");
-  socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
-  if (socketDescriptor == -1) {
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Error when setting up socket: %s", errorMessage);
-    exit(1);
-  }
-  printf("Socket set up\n");
-
-  // Bind socket
-  printf("Binding socket...\n");
-  int bindReturn = bind(socketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
-  if (bindReturn == -1) {
-    char* errorMessage = malloc(1024);
-    strcpy(errorMessage, strerror(errno));
-    printf("Error when binding socket: %s", errorMessage);
-  }
-  printf("Socket bound\n");
-  
-/*	
-  // Listen
-  listen(socketDescriptor, 10);		// Limit queued connections to 10
-
-  struct sockaddr incomingAddress;
-  int incomingSocketDescriptor;
-  socklen_t sizeOfIncomingAddress = sizeof(incomingAddress);
-*/
-
-  //pid_t processId;
-
-  char message[INITIAL_MESSAGE_SIZE];
-  // Continously listen for new UDP packets
-  while (1) {
-    int bytesReceived = recvfrom(socketDescriptor, message, 100, 0, 0, 0);  // Receive UDP message
-    if (bytesReceived == -1) {                // Error
-      char* errorMessage = malloc(1024);
-      strcpy(errorMessage, strerror(errno));
-      printf("%s\n", errorMessage);
-      exit(1);
+    // Set up socket
+    printf("Setting up socket...\n");
+    socketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
+    if (socketDescriptor == -1) {
+        perror("Error setting up socket");
+        exit(1);
     }
-    printf("Received %d bytes\n", bytesReceived);
-    printf("%s\n", message);                      // Print message the client sent
-    memset(&message[0], 0, INITIAL_MESSAGE_SIZE); // Clear out message buffer
 
- /* 
-    // Accept the incoming connection
-    printf("Listening for connections...\n");
-    incomingSocketDescriptor = accept(socketDescriptor, &incomingAddress, &sizeOfIncomingAddress);
-    printf("Connection accepted\n");
-    printf("Listening for data...\n");
-    
-    if ((processId = fork()) == 0) {
-      close(socketDescriptor); 
-      uint8_t clientAlive = 1;
+    // Bind socket
+    printf("Binding socket...\n");
+    int bindReturn = bind(socketDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+    if (bindReturn == -1) {
+        perror("Error binding socket");
+        exit(1);
+    }
 
-      // Process incoming data
-//      char* incomingFileName = malloc(FILE_NAME_SIZE);      // Space for file name
-      fcntl(incomingSocketDescriptor, F_SETFL, O_NONBLOCK); // Set socket to non blocking (will return if no data available)
-      int receivePacketReturn;
+    char message[INITIAL_MESSAGE_SIZE];
+    struct sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
 
-      while(clientAlive) {
-        char* incomingFileName = malloc(FILE_NAME_SIZE);      // Space for file name
-        receivePacketReturn = receivePacket(incomingSocketDescriptor, incomingFileName, FILE_NAME_SIZE, serverPacketFields, debugFlag);
-        switch (receivePacketReturn) {
-          case 0: // get command
-            sendPacket(incomingFileName, incomingSocketDescriptor, serverPacketFields, serverPacketFields.putCommand, debugFlag); // Send back the requested file
-            break;
-          case 1: // Client connection closed
-            clientAlive = 0;
-            break;
-          default:  // put command or error (need to improve)
-            break;
+    // Continuously listen for new UDP packets
+    while (1) {
+        // Receive a message from a client
+        int bytesReceived = recvfrom(socketDescriptor, message, INITIAL_MESSAGE_SIZE, 0, (struct sockaddr*)&client_addr, &client_addr_len);
+        if (bytesReceived == -1) {
+            perror("Error receiving message");
+            exit(1);
         }
-      }
+        message[bytesReceived] = '\0';  // Null-terminate received string
 
-      printf("Connection terminated\n");
-      exit(0);
+        // Add the client to the list if it's new
+        add_client(&client_addr, client_addr_len);
+
+        // Check if it's a command (starts with %)
+        if (message[0] == '%') {
+            if (strncmp(message, "%put ", 5) == 0) {
+                handle_put_command(message, &client_addr, client_addr_len);
+            } else if (strncmp(message, "%get ", 5) == 0) {
+                char* filename = &message[5];
+                handle_get_command(filename, &client_addr, client_addr_len);
+            } else {
+                printf("Unrecognized command: %s\n", message);
+            }
+        } else {
+            // Plain text, broadcast the message to all clients
+            broadcast_message(message, &client_addr);
+        }
     }
-    close(incomingSocketDescriptor);
-  */
-  }
-  return 0;
+
+    return 0;
 }
 
-/*
-* Name: shutdownServer
-* Purpose: Gracefully shutdown the server when the user enters
-* ctrl-c. Closes the sockets and frees addrinfo data structure
-* Input: The signal raised
-* Output: None
-*/
+// Store the uploaded file from a PUT command
+void handle_put_command(char* message, struct sockaddr_in* client_addr, socklen_t addr_len) {
+    char* filename = &message[5];
+    if (storedFileCount >= MAX_CLIENTS) {
+        printf("File storage full\n");
+        return;
+    }
+
+    // Receive file contents from client
+    char fileContents[MAX_FILE_CONTENTS];
+    int bytesReceived = recvfrom(socketDescriptor, fileContents, MAX_FILE_CONTENTS, 0, NULL, NULL);
+    if (bytesReceived > 0) {
+        fileContents[bytesReceived] = '\0';  // Null-terminate the received string
+        strncpy(storedFiles[storedFileCount], filename, MAX_FILENAME_SIZE);
+        strncpy(storedContents[storedFileCount], fileContents, MAX_FILE_CONTENTS);
+        storedFileCount++;
+        printf("File '%s' stored from client\n", filename);
+    } else {
+        perror("Error receiving file contents");
+    }
+}
+
+// Send the requested file to the client in response to a GET command
+void handle_get_command(char* filename, struct sockaddr_in* client_addr, socklen_t addr_len) {
+    for (int i = 0; i < storedFileCount; i++) {
+        if (strcmp(storedFiles[i], filename) == 0) {
+            sendto(socketDescriptor, storedContents[i], strlen(storedContents[i]), 0, (struct sockaddr*)client_addr, addr_len);
+            printf("File '%s' sent to client\n", filename);
+            return;
+        }
+    }
+    printf("File '%s' not found\n", filename);
+}
+
+// Broadcast a plain text message to all clients except the sender
+void broadcast_message(char* message, struct sockaddr_in* sender_addr) {
+    for (int i = 0; i < client_count; i++) {
+        if (client_addresses[i].sin_addr.s_addr != sender_addr->sin_addr.s_addr ||
+            client_addresses[i].sin_port != sender_addr->sin_port) {
+            sendto(socketDescriptor, message, strlen(message), 0, (struct sockaddr*)&client_addresses[i], client_address_lengths[i]);
+        }
+    }
+    printf("Broadcast message: %s\n", message);
+}
+
+// Add a client to the list of connected clients
+void add_client(struct sockaddr_in* client_addr, socklen_t addr_len) {
+    for (int i = 0; i < client_count; i++) {
+        if (client_addresses[i].sin_addr.s_addr == client_addr->sin_addr.s_addr &&
+            client_addresses[i].sin_port == client_addr->sin_port) {
+            return;  // Client is already in the list
+        }
+    }
+    client_addresses[client_count] = *client_addr;
+    client_address_lengths[client_count] = addr_len;
+    client_count++;
+    printf("Added new client\n");
+}
+
+// Shutdown the server gracefully
 void shutdownServer(int signal) {
-//  close(incomingSocketDescriptor);
-  close(socketDescriptor);
-//	freeaddrinfo(serverAddressInfo);
-  printf("\n");
-  exit(0);
+    close(socketDescriptor);
+    printf("\nServer shutdown\n");
+    exit(0);
 }
