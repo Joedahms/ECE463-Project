@@ -98,7 +98,20 @@ int main(int argc, char* argv[]) {
         break;  // Break case 1
 
       case 2:   // Plain text
-                // Handle plain text here
+        // Broadcast the message to all connected clients
+        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {     // Loop through all connected clients
+          if (connectedClients[i].socketUdpAddress.sin_addr.s_addr != 0) { // Ensure the client has a valid address
+            // Send the message to the connected client
+            int sendtoReturnValue = sendto(listeningUDPSocketDescriptor, message, strlen(message), 0, 
+                                          (struct sockaddr *)&(connectedClients[i].socketUdpAddress), 
+                                          sizeof(connectedClients[i].socketUdpAddress));
+            if (sendtoReturnValue == -1) {
+              perror("UDP send error");
+            } else {
+              printf("Message broadcasted to client %d\n", i);
+            }
+          }
+        }
         break;  // Break case 2
 
       case 3:   // Put command

@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
   checkCommandLineArguments(argc, argv, &debugFlag);
  
   // Setup sockets
-	udpSocketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
+  udpSocketDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
   tcpSocketDescriptor = socket(AF_INET, SOCK_STREAM, 0);
 
   // Connect to the server
@@ -58,45 +58,89 @@ int main(int argc, char* argv[]) {
   // Send the local TCP connection info to the server
   sendTcpAddress(serverAddress, tcpAddress, debugFlag);
 
-  // Constantly check user input
-  while(1) {
-    // Get user input and store in userInput buffer
-    char* userInput = malloc(USER_INPUT_BUFFER_LENGTH);
-    getUserInput(userInput);
+  // Buffer to receive incoming messages
+  char* incomingMessage = malloc(INITIAL_MESSAGE_SIZE);
+  struct sockaddr_in incomingAddress;
+  socklen_t incomingAddressLength = sizeof(incomingAddress);
 
-    // User just pressed return
-    if (strlen(userInput) == 0) {  
-      continue;
-    }
+  fd_set readfds;  // Set of file descriptors for select()
+  int max_sd = udpSocketDescriptor;  // Max socket descriptor value
+  
+  // Constantly check for both user input and incoming messages
+  while (1) {
+    // Clear the file descriptor set and add stdin (fd = 0) and the UDP socket
+    FD_ZERO(&readfds);
+    FD_SET(STDIN_FILENO, &readfds);  // Add standard input (stdin)
+    FD_SET(udpSocketDescriptor, &readfds);  // Add UDP socket
 
-    if (checkStringForCommand(userInput) == 0) {            // User entered plain text message
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input via UDP
-      continue;
-    }
-
-    if (checkForValidCommand(userInput) == 0) {             // Not a recognized command or an invalid file name
-      printf("Please enter a valid command:\n");
-      printf("%%put to send a file to the server\n");
-      printf("%%get to request a file from the server\n");
-      continue;
-    }
-
-    char* fileName = malloc(FILE_NAME_SIZE);
-    fileNameFromCommand(userInput, fileName);               // Extract the file name from the user input
+    // Wait for activity on either stdin or the UDP socket
+    int activity = select(max_sd + 1, &readfds, NULL, NULL, NULL);
     
-    if (strncmp(userInput, "%put ", 5) == 0) {              // Put command
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
-      putCommand(fileName);                                 // Send the file
+    if ((activity < 0) && (errno != EINTR)) {
+      perror("select error");
     }
-    else {                                                  // Get command
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
-      if (getCommand(fileName) == -1) {                     // Receive the file
-        printf("Failed to get file\n");
+
+    // Check if there is activity on stdin (user input)
+    if (FD_ISSET(STDIN_FILENO, &readfds)) {
+      // Get user input and store in userInput buffer
+      char* userInput = malloc(USER_INPUT_BUFFER_LENGTH);
+      getUserInput(userInput);
+
+      // User just pressed return
+      if (strlen(userInput) == 0) {
+        continue;
+      }
+
+      // Handle plain text message
+      if (checkStringForCommand(userInput) == 0) {  // User entered plain text message
+        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input via UDP
+        free(userInput);  // Free the user input buffer
+        continue;  // Go back to listening for input or messages
+      }
+
+      // Handle put/get commands
+      if (checkForValidCommand(userInput) == 0) {  // Not a recognized command or invalid file name
+        printf("Please enter a valid command:\n");
+        printf("%%put to send a file to the server\n");
+        printf("%%get to request a file from the server\n");
+        free(userInput);  // Free the user input buffer
+        continue;
+      }
+
+      // Extract file name and handle %put/%get commands
+      char* fileName = malloc(FILE_NAME_SIZE);
+      fileNameFromCommand(userInput, fileName);  // Extract the file name from the user input
+
+      if (strncmp(userInput, "%put ", 5) == 0) {  // Put command
+        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
+        putCommand(fileName);  // Send the file
+      } else if (strncmp(userInput, "%get ", 5) == 0) {  // Get command
+        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
+        if (getCommand(fileName) == -1) {  // Receive the file
+          printf("Failed to get file\n");
+        }
+      }
+
+      free(fileName);  // Free the file name buffer
+      free(userInput);  // Free the user input buffer
+    }
+
+    // Check if there is activity on the UDP socket (incoming broadcast message)
+    if (FD_ISSET(udpSocketDescriptor, &readfds)) {
+      int receivedBytes = recvfrom(udpSocketDescriptor, incomingMessage, INITIAL_MESSAGE_SIZE, 0, 
+                                   (struct sockaddr *)&incomingAddress, &incomingAddressLength);
+      if (receivedBytes > 0) {
+        // Print the received message
+        incomingMessage[receivedBytes] = '\0';  // Ensure null termination
+        printf("Received broadcast message: %s\n", incomingMessage);
+      } else if (receivedBytes == -1 && errno != EWOULDBLOCK) {
+        perror("Error receiving broadcast message");
       }
     }
   }
-	return 0;
-} 
+
+  return 0;
+}
 
 /*
  * Name: shutdownClient
