@@ -127,11 +127,19 @@ int main(int argc, char* argv[]) {
 
     // Check if there is activity on the UDP socket (incoming broadcast message)
     if (FD_ISSET(udpSocketDescriptor, &readfds)) {
-      int receivedBytes = recvfrom(udpSocketDescriptor, incomingMessage, INITIAL_MESSAGE_SIZE, 0, 
-                                   (struct sockaddr *)&incomingAddress, &incomingAddressLength);
+      // Clear the buffer before receiving a new message
+      memset(incomingMessage, 0, INITIAL_MESSAGE_SIZE);  // Clear the buffer
+
+      int receivedBytes = recvfrom(udpSocketDescriptor, incomingMessage, INITIAL_MESSAGE_SIZE - 1, 0, 
+                                  (struct sockaddr *)&incomingAddress, &incomingAddressLength);
+
       if (receivedBytes > 0) {
-        // Print the received message
-        incomingMessage[receivedBytes] = '\0';  // Ensure null termination
+        // Null-terminate at the correct position
+        incomingMessage[receivedBytes] = '\0';
+
+        // Remove any newline or extra control characters that might have been included
+        incomingMessage[strcspn(incomingMessage, "\r\n")] = 0;
+
         printf("Received broadcast message: %s\n", incomingMessage);
       } else if (receivedBytes == -1 && errno != EWOULDBLOCK) {
         perror("Error receiving broadcast message");
