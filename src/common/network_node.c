@@ -11,9 +11,30 @@
 
 #include "network_node.h"
 
+// Check how many command line arguments passed
+void checkCommandLineArguments(int argc, char** argv, uint8_t* debugFlag) {
+  char* programName = argv[0];
+	switch (argc) { // Check how many command line arguments are passed
+		case 1:
+			printf("Running %s in normal mode\n", programName);
+			break;
+		case 2:
+			if (strcmp(argv[1], "-d") == 0) { // Check if debug flag
+				*debugFlag = 1;
+				printf("Running %s in debug mode\n", programName);
+			}
+			else {
+				printf("Invalid usage of %s", programName);
+			}
+			break;
+    default:
+			printf("Invalid usage of %s", programName);
+	}
+}
+
 /*
  * Name: networkNodeConnect
- * Purpose: Connect to another socket
+ * Purpose: Connect to another IPV4 socket via TCP
  * Input: 
  * - Name of the node to connect to
  * - Socket on calling node process
@@ -21,10 +42,10 @@
  * Output: 
  * - Connected socket descriptor
  */
-int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrinfo* destinationAddressInfo) {
+int networkNodeConnect(const char* nodeName, int socketDescriptor, struct sockaddr* destinationAddress, socklen_t destinationAddressLength) {
   printf("Connecting to %s...\n", nodeName);
   int connectionStatus;
-  connectionStatus = connect(socketDescriptor, destinationAddressInfo->ai_addr, destinationAddressInfo->ai_addrlen);
+  connectionStatus = connect(socketDescriptor, destinationAddress, destinationAddressLength);
   // Check if connection was successful
   if (connectionStatus != 0) {
     char* errorMessage = malloc(1024);
@@ -36,126 +57,6 @@ int networkNodeConnect(const char* nodeName, int socketDescriptor, struct addrin
   return socketDescriptor;
 }
 
-/* 
- * Name: packetAppend
- * Purpose: Append a string to a packet and print confirmation
- * Input:
- * - Packet to append string to
- * - String to append to packet
- * - What is being added to the packet
- * Output: Packet with the new string appended to it
- */
-char* packetAppend(char* destinationPacket, const char* sourceInformation, const char* informationName) {
-  size_t sourceInformationLength = strlen(sourceInformation);
-  destinationPacket = strncat(destinationPacket, sourceInformation, sourceInformationLength); // Add beginning of message
-  printf("Added %zd byte %s to packet\n", sourceInformationLength, informationName);
-  return destinationPacket;
-}
-
-/*
- * Name: sendPacket
- * Purpose: Send a packet
- * Input: 
- * - The file name to send
- * - Socket Descriptor of the socket to send the file out on
- * - Structure containing packet packet fields
- * - Which command to send (put or get)
- * - debug flag
- * Output: None
- */
-void sendPacket(const char* fileName, int socketDescriptor, packetFields senderPacketFields, char* command, uint8_t debugFlag) {
-  char* packet = malloc(MAX_PACKET_LENGTH);             // Allocate memory for packet
-  printf("Allocated %d byte packet\n", MAX_PACKET_LENGTH);
-  
-  // Add beginning of message to packet
-  packet = packetAppend(packet, senderPacketFields.messageBegin, "beginning of message");
-
-  // Add command to packet
-  uint8_t putCommandFlag = 0;
-  // put
-  if (strcmp(senderPacketFields.putCommand, command) == 0) {
-    putCommandFlag = 1;
-    packet = packetAppend(packet, senderPacketFields.putCommand, "put command");
-  }
-  // get
-  else if (strcmp(senderPacketFields.getCommand, command) == 0) {
-    packet = packetAppend(packet, senderPacketFields.getCommand, "get command");
-  }
-  else {
-    printf("Invalid command passed to sendPacket()\n"); 
-    exit(1);
-  }
-
-  // Add delimiter to packet
-  packet = packetAppend(packet, senderPacketFields.delimiter, "delimiter");
-
-  // Add file name to packet
-  packet = packetAppend(packet, fileName, "file name");
-  
-  // Add delimiter to packet
-  packet = packetAppend(packet, senderPacketFields.delimiter, "delimiter");
-
-  // If file contents are to be sent
-  if (putCommandFlag) {
-    // Add file contents to packet
-    printf("Adding contents of %s to packet\n", fileName);
-    // Open the file
-    int fileDescriptor;
-    printf("Opening file %s...\n", fileName);
-    fileDescriptor = open(fileName, O_CREAT, O_RDWR);	// Create if does not exist + read and write mode
-    if (fileDescriptor == -1) {
-      char* errorMessage = malloc(1024);
-      strcpy(errorMessage, strerror(errno));
-      printf("Failed to open file \"%s\" with error %s\n", fileName, errorMessage);
-      exit(1);
-    }
-    printf("File %s opened\n", fileName);
-
-    // Get the size of the file in bytes
-    struct stat fileInformation;
-    if (stat(fileName, &fileInformation) == -1) {
-      printf("Stat Error\n");
-      exit(1);
-    };
-    unsigned long int fileSize = fileInformation.st_size;
-    printf("%s is %ld bytes\n", fileName, fileSize);
-
-    // Read out the contents of the file
-    char* fileContents = malloc(100000);
-    printf("Reading file...\n");
-    ssize_t bytesReadFromFile = 0;
-    bytesReadFromFile = read(fileDescriptor, fileContents , fileSize);
-    if (bytesReadFromFile == -1) {            // read failed()
-      char* errorMessage = malloc(1024);
-      strcpy(errorMessage, strerror(errno));
-      printf("Failed to read file \"%s\" with error %s\n", fileName, errorMessage);
-      exit(1);
-    }
-    else {
-      printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
-    }
-    
-    // Add file contents to packet
-    packet = packetAppend(packet, fileContents, "file contents");
-  }
-  // get
-  else {
-    char* dummyFileContents = malloc(1);  // No contents sent with a get command
-    packet = packetAppend(packet, dummyFileContents, "dummy file contents");
-  }
-
-  // Add message end to packet
-  packet = packetAppend(packet, senderPacketFields.messageEnd, "message end");
-  
-  // Print out the packet that is going to be sent
-  printf("%zd byte packet to be sent: %s\n", strlen(packet), packet);
-
-  // Send the packet
-  printf("Sending packet...\n");
-  int bytesSent = sendBytes(socketDescriptor, packet, strlen(packet), debugFlag);
-  printf("%d byte packet sent\n", bytesSent);
-}
-
 /*
  * Name: sendBytes
  * Purpose: Send a desired number of bytes out on a Socket
@@ -165,17 +66,15 @@ void sendPacket(const char* fileName, int socketDescriptor, packetFields senderP
  * - Amount of bytes to send
  * - Debug flag
  * Output: Number of bytes sent
- * Notes: need to change variable names to be more ambiguous
  */
 int sendBytes(int socketDescriptor, const char* buffer, unsigned long int bufferSize, uint8_t debugFlag) {
   if (debugFlag) {
-    // Print the bytes to send
     printf("Bytes to be sent:\n\n");
     int i;
     for (i = 0; i < bufferSize; i++) {
       printf("%c", buffer[i]);
     }
-    printf("\n \n");
+    printf("\n\n");
   }
 
   int bytesSent = 0;
@@ -218,130 +117,129 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
 }
 
 /*
- * Name: receiveFile
- * Purpose: This function is for reading a file into the present working directory.
- * The file name will be the same as the file that was sent.
- * Input: Socket Descriptor of the accepted transmission
- * Output: None
+ * Name: checkStringForCommand
+ * Purpose: Check if a string has a command in it
+ * Input: String that might have a command
+ * Ouptut: 
+ * - 0: String is not a command
+ * - 1: String is a command
  */
-int receivePacket(int incomingSocketDescriptor, char* fileName, int fileNameSize, packetFields receiverPacketFields, uint8_t debugFlag) {
-  char* incomingPacket = malloc(MAX_PACKET_LENGTH); // Allocate space for incoming packet
-  int totalBytesReceived = 0;
-  while (totalBytesReceived = recv(incomingSocketDescriptor, incomingPacket, MAX_PACKET_LENGTH, 0)) { // Constantly check the socket for data
-    if (debugFlag) {
-      printf("%d\n", totalBytesReceived);
-    }
-    if (totalBytesReceived != -1) { // Something was actually received or client closed connection
-      break;
-    }
+int checkStringForCommand(const char* userInput) {
+  if (userInput[0] == '%') {  // Check first character for '%'
+    return 1; // User entered command
   }
-
-  if (totalBytesReceived == 0) {
-    printf("Client closed connection\n");
-    return 1;
-  }
-  printf("Receiving Packet...\n");
-
-  printf("%d byte packet received:\n", totalBytesReceived);
-  if (debugFlag) {
-    printf("%s\n", incomingPacket);
-  }
-
-  printf("Parsing packet...\n");
-
-  // Look for beginning of message
-  printf("Checking for beginning of message...\n");
-  if (strstr(incomingPacket, receiverPacketFields.messageBegin)) {  // Check if beginning exists
-    printf("Beginning of message found\n"); 
-    incomingPacket += strlen(receiverPacketFields.messageBegin);    // Advance to after beginning
-  }
-  else {  // Beginning of messsage not found
-    printf("Invalid packet: Beginning of message not found\n");
-    return 10; // change
-  }
-
-  // Check command
-  uint8_t getFlag = 0;  // Whether or not get has been received
-  printf("Checking command...\n");
-  int commandSize = 3;  // Both commands are 3 bytes
-  char* incomingCommand = malloc(commandSize);
-  incomingCommand = strncpy(incomingCommand, incomingPacket, commandSize);  // Read the command off the packet
-  // put
-  if (strcmp(incomingCommand, "put") == 0) {  
-    printf("Command found: put\n");
-    // Care about file contents
-  }
-  // get
-  else if (strcmp(incomingCommand, "get") == 0) {
-    printf("Command found: get\n");
-    getFlag = 1;  // Dont care about the file contents
-  }
-  // invalid
   else {
-    printf("Invalid command received\n");
-    return 10; // change
+    return 0; // User entered plain text
   }
-
-  // Need to improve This
-  // Assuming all is well and skipping delimiter to file name
-  incomingPacket += 12;
-
-  // Find file name
-  printf("Checking file name...\n");
-  char* incomingFileName = malloc(fileNameSize);
-  char* nextPacketChar = malloc(1);   // So can use strcat()
-  while (strstr(incomingFileName, receiverPacketFields.delimiter) == NULL) {  // while delimiter not found
-    if (*incomingPacket == '\0') {    // Got to end of packet before delimiter was found
-      printf("filename error\n");
-      return 10; // change
-    }
-    // Add next packet character to file name
-    nextPacketChar[0] = *incomingPacket;
-    incomingFileName = strcat(incomingFileName, nextPacketChar); 
-    incomingPacket++;
-  }
-  incomingFileName[strlen(incomingFileName) - 9] = '\0';  // Remove delimiter from file name
-  printf("File name:\n%s\n", incomingFileName);
-
-  // get
-  if (getFlag) {  // Dont care about file contents, just return
-    strcpy(fileName, incomingFileName);
-    return 0;
-  }
-  // put
-  else {  // Care about file contents, extract them
-    // Find file contents
-    printf("Checking file contents...\n");
-    char* incomingFileContents = malloc(10000);
-    while (strstr(incomingFileName, receiverPacketFields.messageEnd) == NULL) { // While end of message has not been encountered
-      if (*incomingPacket == '\0') {  // At the end of the packet
-        nextPacketChar[0] = *incomingPacket;
-        incomingFileContents = strcat(incomingFileContents, nextPacketChar); 
-        break;
-      }
-      // Not at the end of the packet
-      nextPacketChar[0] = *incomingPacket;
-      incomingFileContents = strcat(incomingFileContents, nextPacketChar);  // Add the next character in the packet to the file contents
-      incomingPacket++;
-    }
-    int i;
-    for (i = 0; i < 10; i++) {
-      incomingFileContents[strlen(incomingFileContents) - 1] = '\0';
-    }
-    if (debugFlag) {
-      printf("File contents:\n%s\n", incomingFileContents);
-    }
-
-    // Open and write to the new file
-    int receivedFile;
-    printf("Opening received file...\n");
-    receivedFile = open(incomingFileName, (O_CREAT | O_RDWR), S_IRWXU);
-    printf("Received file opened\n");
-    printf("Writing received file...\n");
-    write(receivedFile, incomingFileContents, totalBytesReceived);
-    printf("Received file written\n");
-  }
-  return 11;
 }
 
+/*
+  * Name:
+  * Purpose:
+  * Input: 
+  * Output:
+*/
+
+void printReceivedMessage(struct sockaddr_in sender, int bytesReceived, char* message, uint8_t debugFlag) {
+  if (debugFlag) {
+    unsigned long senderAddress = ntohl(sender.sin_addr.s_addr);
+    unsigned short senderPort = ntohs(sender.sin_port);
+    printf("Received %d byte message from %ld:%d:\n", bytesReceived, senderAddress, senderPort);
+    printf("%s\n", message);
+  }
+  else {
+    printf("Received %d byte message\n", bytesReceived);
+  }
+}
+
+/*
+  * Name: readFile
+  * Purpose: Open a file and read from it
+  * Input: 
+  * - File name
+  * - Buffer to store the read contents
+  * - Debug flag
+  * Output: 
+  * - -1: Error
+  * - 0: Success
+*/
+int readFile(char* fileName, char* buffer, uint8_t debugFlag) {
+  // Open the file
+  int fileDescriptor;
+  printf("Opening file %s...\n", fileName);
+  fileDescriptor = open(fileName, O_CREAT, O_RDWR); // Create if does not exist + read and write mode
+  if (fileDescriptor == -1) {
+    perror("Error opening file");
+    return -1;
+  }
+  printf("File %s opened\n", fileName);
+
+  // Get the size of the file in bytes
+  struct stat fileInformation;
+  if (stat(fileName, &fileInformation) == -1) {
+    perror("Error getting file size");
+    return -1;
+  };
+  unsigned long int fileSize = fileInformation.st_size;
+  if (debugFlag) {
+    printf("%s is %ld bytes\n", fileName, fileSize);
+  }
+
+  // Read out the contents of the file
+  printf("Reading file...\n");
+  ssize_t bytesReadFromFile = 0;
+  bytesReadFromFile = read(fileDescriptor, buffer, fileSize);
+  if (bytesReadFromFile == -1) {
+    perror("Error reading file");
+    return -1;
+  }
+  if (debugFlag) {
+    printf("%zd bytes read from %s\n", bytesReadFromFile, fileName);
+  }
+  printf("File read successfully\n");
+  return 0;
+}
+
+/*
+  * Name: writeFile
+  * Purpose: Open a file and write to it
+  * Input: 
+  * - Name of the file
+  * - What to write to the file
+  * - Length of data to be written to the file
+  * Output:
+  * - -1: Error
+  * - 0: Success
+*/
+int writeFile(char* fileName, char* fileContents, size_t fileSize) {
+  // Open file to write to
+  int fileDesciptor;
+  fileDesciptor = open(fileName, (O_CREAT | O_RDWR), S_IRWXU); // Create if doesn't exist. Read/write
+  if (fileDesciptor == -1) {
+    perror("Error opening file");
+    return -1;
+  }
+
+  // Write to the new file
+  int writeReturn = write(fileDesciptor, fileContents, fileSize);
+  if (writeReturn == -1) {
+    perror("File write error");
+    return -1;
+  }
+  return 0;
+}
+
+/*
+  * Name: fileNameFromCommand
+  * Purpose: Extract the file name from a command
+  * Input: 
+  * - The user input/command
+  * - String to return the file name in
+  * Output: None
+*/
+void fileNameFromCommand(char* userInput, char* fileName) {
+  char* tempUserInput = userInput;
+  tempUserInput += 5;
+  strcpy(fileName, tempUserInput);
+}
 
