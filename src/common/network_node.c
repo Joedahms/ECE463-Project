@@ -323,3 +323,27 @@ int checkUdpSocket(int listeningUDPSocketDescriptor, struct sockaddr_in* incomin
     return 5;                                     // Return 5
   }
 }
+
+/*
+  * Name: handleErrorNonBlocking
+  * Purpose: Check the return after checking a non blocking socket
+  * Input: The return value from checking the socket
+  * Output:
+  * - 0: There is data waiting to be read
+  * - 1: No data waiting to be read
+*/
+int handleErrorNonBlocking(int returnValue) {
+  if (returnValue == -1) {                          // Error
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {  // Errors occuring from no message on non blocking socket
+      return 1;
+    }
+    else {                                          // Relevant error
+      perror("Error when checking non blocking socket");
+      exit(1);
+      return 1;
+    }
+  }
+  else {                                            // Got a message
+    return 0;
+  }
+}

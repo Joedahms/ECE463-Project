@@ -58,19 +58,7 @@ int main(int argc, char* argv[]) {
   // Send the local TCP connection info to the server
   sendTcpAddress(serverAddress, tcpAddress, debugFlag);
 
-
-  fd_set rfds;
-  struct timeval tv;
-  int retval, len;
-  char buff[255] = {0};
-
-  /* Watch stdin (fd 0) to see when it has input. */
-  FD_ZERO(&rfds);
-  FD_SET(0, &rfds);
-
-  /* Wait up to 1 seconds. */
-  tv.tv_sec = 1;
-  tv.tv_usec = 0;
+  fd_set read_fds;
 
   char* message = malloc(1000);
   struct sockaddr_in address;
@@ -78,13 +66,18 @@ int main(int argc, char* argv[]) {
   // Constantly check user input
   while(1) {
 
-    retval = select(1, &rfds, NULL, NULL, &tv);
+    // Use select to handle user input and server messages simultaneously
+    FD_ZERO(&read_fds);
+    FD_SET(0, &read_fds);  // 0 is stdin (for user input)
+    FD_SET(udpSocketDescriptor, &read_fds);  // The socket for receiving server messages
 
-    if (retval == -1){
-        perror("select()");
-        exit(EXIT_FAILURE);
+    int activity = select(udpSocketDescriptor + 1, &read_fds, NULL, NULL, NULL);
+
+    if (activity < 0 && errno != EINTR) {
+        perror("select error");
     }
-    else if (retval){
+
+    if (FD_ISSET(0, &read_fds)) {
       // Get user input and store in userInput buffer
       char* userInput = malloc(USER_INPUT_BUFFER_LENGTH);
       getUserInput(userInput);
@@ -95,7 +88,9 @@ int main(int argc, char* argv[]) {
       }
 
       if (checkStringForCommand(userInput) == 0) {            // User entered plain text message
-        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input via UDP
+        sendUdpMessage(udpSocketDescriptor, serverAddress, userInput, debugFlag);  // Send user input via UDP
+        //sendto(udpSocketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+        printf("Plain text message sent to server\n");
         continue;
       }
 
@@ -110,21 +105,24 @@ int main(int argc, char* argv[]) {
       fileNameFromCommand(userInput, fileName);               // Extract the file name from the user input
       
       if (strncmp(userInput, "%put ", 5) == 0) {              // Put command
-        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
+        sendUdpMessage(udpSocketDescriptor, serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
         putCommand(fileName);                                 // Send the file
       }
       else {                                                  // Get command
-        sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
+        sendUdpMessage(udpSocketDescriptor, serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
         if (getCommand(fileName) == -1) {                     // Receive the file
           printf("Failed to get file\n");
         }
       }
     }
-    else {
-        printf("No data within five seconds.\n");            
-      checkUdpSocket(udpSocketDescriptor, address, message, debugFlag); 
-      printf("Message");
+    //else {
+      //printf("No data within five seconds.\n");            
+    if (FD_ISSET(udpSocketDescriptor, &read_fds)) {
+      receiveMessageFromServer();
     }
+      //checkUdpSocket(udpSocketDescriptor, &address, message, debugFlag); 
+      //printf("Message");
+    //}
   }
 	return 0;
 } 
@@ -253,6 +251,18 @@ void sendTcpAddress(struct sockaddr_in serverAddress, struct sockaddr_in tcpAddr
     printf("tcpAddressMessage: %s\n", tcpAddressMessage); 
   }
 
-  sendUdpMessage(serverAddress, tcpAddressMessage, debugFlag);    // Send the message to the server
+  sendUdpMessage(udpSocketDescriptor, serverAddress, tcpAddressMessage, debugFlag);    // Send the message to the server
+}
+
+// Function to receive messages from the server
+void receiveMessageFromServer() {
+    char buffer[USER_INPUT_BUFFER_LENGTH];
+    int bytesReceived = recvfrom(udpSocketDescriptor, buffer, USER_INPUT_BUFFER_LENGTH, 0, NULL, NULL);
+    if (bytesReceived > 0) {
+        buffer[bytesReceived] = '\0';  // Null-terminate the received string
+        printf("Message from server: %s\n", buffer);
+    } else {
+        perror("Error receiving message from server");
+    }
 }
 

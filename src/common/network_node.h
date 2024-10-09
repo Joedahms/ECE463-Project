@@ -38,5 +38,6 @@ int writeFile(char*, char*, size_t);
 void fileNameFromCommand(char*, char*);
 
 int checkUdpSocket(int, struct sockaddr_in*, char*, uint8_t);
+int handleErrorNonBlocking(int);        // Handle error when "reading" from non blocking socket
 
 #endif

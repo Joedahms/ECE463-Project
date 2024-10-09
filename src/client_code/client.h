@@ -7,5 +7,6 @@ int checkForValidCommand(char*);
 int putCommand(char*);
 int getCommand(char*);
 void sendTcpAddress(struct sockaddr_in, struct sockaddr_in, uint8_t);
+void receiveMessageFromServer();
 
 #endif

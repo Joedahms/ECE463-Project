@@ -98,10 +98,7 @@ int main(int argc, char* argv[]) {
         break;  // Break case 1
 
       case 2:   // Plain text
-        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {     // Loop through all connected clients
-          // Send plain text to all connected clients
-          write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));  
-        }
+        broadcastMessage(listeningUDPSocketDescriptor, message, &clientUDPAddress);
         break;  // Break case 2
 
       case 3:   // Put command
@@ -159,6 +156,8 @@ int main(int argc, char* argv[]) {
   return 0;
 } // main
 
+
+
 /*
 * Name: shutdownServer
 * Purpose: Gracefully shutdown the server when the user enters
@@ -172,30 +171,6 @@ void shutdownServer(int signal) {
   close(connectedTCPSocketDescriptor);
   printf("\n");
   exit(0);
-}
-
-/*
-  * Name: handleErrorNonBlocking
-  * Purpose: Check the return after checking a non blocking socket
-  * Input: The return value from checking the socket
-  * Output:
-  * - 0: There is data waiting to be read
-  * - 1: No data waiting to be read
-*/
-int handleErrorNonBlocking(int returnValue) {
-  if (returnValue == -1) {                          // Error
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {  // Errors occuring from no message on non blocking socket
-      return 1;
-    }
-    else {                                          // Relevant error
-      perror("Error when checking non blocking socket");
-      exit(1);
-      return 1;
-    }
-  }
-  else {                                            // Got a message
-    return 0;
-  }
 }
 
 /*
@@ -447,4 +422,15 @@ void printAllConnectedClients() {
     printf("TCP ADDRESS: %ld\n", tcpAddress);
     printf("TCP PORT: %d\n\n", tcpPort);
   }
+}
+
+// Broadcast a plain text message to all clients except the sender
+void broadcastMessage(int udpSocketDescriptor, char* message, struct sockaddr_in* sender_addr) {
+  for (int i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
+    if (connectedClients[i].socketTcpAddress.sin_addr.s_addr != sender_addr->sin_addr.s_addr ||
+      connectedClients[i].socketUdpAddress.sin_port != sender_addr->sin_port) {
+        sendto(udpSocketDescriptor, message, strlen(message), 0, (struct sockaddr*)&connectedClients[i], sizeof(connectedClients[i]));
+      }
+    }
+  printf("Broadcast message: %s\n", message);
 }
