@@ -10,11 +10,9 @@ struct connectedClient {
 };
 
 void shutdownServer(int);               // Gracefully shutdown the server
-int handleErrorNonBlocking(int);        // Handle error when "reading" from non blocking socket
 
 void setupUdpSocket(struct sockaddr_in);
 void setupTcpSocket(struct sockaddr_in);
-int checkUdpSocket(struct sockaddr_in*, char*, uint8_t);
 int checkTcpSocket(struct sockaddr_in*, uint8_t);
 
 void handleTcpConnection(struct sockaddr_in, uint8_t);
@@ -22,5 +20,6 @@ int findEmptyConnectedClient(uint8_t);
 
 void printAllConnectedClients();
 
+void broadcastMessage(int, char*, struct sockaddr_in*);
 
 #endif

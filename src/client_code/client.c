@@ -58,42 +58,71 @@ int main(int argc, char* argv[]) {
   // Send the local TCP connection info to the server
   sendTcpAddress(serverAddress, tcpAddress, debugFlag);
 
+  fd_set read_fds;
+
+  char* message = malloc(1000);
+  struct sockaddr_in address;
+
   // Constantly check user input
   while(1) {
-    // Get user input and store in userInput buffer
-    char* userInput = malloc(USER_INPUT_BUFFER_LENGTH);
-    getUserInput(userInput);
 
-    // User just pressed return
-    if (strlen(userInput) == 0) {  
-      continue;
+    // Use select to handle user input and server messages simultaneously
+    FD_ZERO(&read_fds);
+    FD_SET(0, &read_fds);  // 0 is stdin (for user input)
+    FD_SET(udpSocketDescriptor, &read_fds);  // The socket for receiving server messages
+
+    int activity = select(udpSocketDescriptor + 1, &read_fds, NULL, NULL, NULL);
+
+    if (activity < 0 && errno != EINTR) {
+        perror("select error");
     }
 
-    if (checkStringForCommand(userInput) == 0) {            // User entered plain text message
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input via UDP
-      continue;
-    }
+    if (FD_ISSET(0, &read_fds)) {
+      // Get user input and store in userInput buffer
+      char* userInput = malloc(USER_INPUT_BUFFER_LENGTH);
+      getUserInput(userInput);
 
-    if (checkForValidCommand(userInput) == 0) {             // Not a recognized command or an invalid file name
-      printf("Please enter a valid command:\n");
-      printf("%%put to send a file to the server\n");
-      printf("%%get to request a file from the server\n");
-      continue;
-    }
+      // User just pressed return
+      if (strlen(userInput) == 0) {  
+        continue;
+      }
 
-    char* fileName = malloc(FILE_NAME_SIZE);
-    fileNameFromCommand(userInput, fileName);               // Extract the file name from the user input
-    
-    if (strncmp(userInput, "%put ", 5) == 0) {              // Put command
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
-      putCommand(fileName);                                 // Send the file
-    }
-    else {                                                  // Get command
-      sendUdpMessage(serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
-      if (getCommand(fileName) == -1) {                     // Receive the file
-        printf("Failed to get file\n");
+      if (checkStringForCommand(userInput) == 0) {            // User entered plain text message
+        sendUdpMessage(udpSocketDescriptor, serverAddress, userInput, debugFlag);  // Send user input via UDP
+        //sendto(udpSocketDescriptor, userInput, strlen(userInput), 0, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
+        printf("Plain text message sent to server\n");
+        continue;
+      }
+
+      if (checkForValidCommand(userInput) == 0) {             // Not a recognized command or an invalid file name
+        printf("Please enter a valid command:\n");
+        printf("%%put to send a file to the server\n");
+        printf("%%get to request a file from the server\n");
+        continue;
+      }
+
+      char* fileName = malloc(FILE_NAME_SIZE);
+      fileNameFromCommand(userInput, fileName);               // Extract the file name from the user input
+      
+      if (strncmp(userInput, "%put ", 5) == 0) {              // Put command
+        sendUdpMessage(udpSocketDescriptor, serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
+        putCommand(fileName);                                 // Send the file
+      }
+      else {                                                  // Get command
+        sendUdpMessage(udpSocketDescriptor, serverAddress, userInput, debugFlag);  // Send user input(command) via UDP
+        if (getCommand(fileName) == -1) {                     // Receive the file
+          printf("Failed to get file\n");
+        }
       }
     }
+    //else {
+      //printf("No data within five seconds.\n");            
+    if (FD_ISSET(udpSocketDescriptor, &read_fds)) {
+      receiveMessageFromServer();
+    }
+      //checkUdpSocket(udpSocketDescriptor, &address, message, debugFlag); 
+      //printf("Message");
+    //}
   }
 	return 0;
 } 
@@ -151,35 +180,7 @@ int checkForValidCommand(char* userInput) {
   return 0;                                         // Invalid command, return 0
 }
 
-/*
-  * Name: sendUdpMessage
-  * Purpose: Send a message via UDP
-  * Input: 
-  * - Socket address to send the message to
-  * - The message to send
-  * - Debug flag
-  * Output: None
-*/
-void sendUdpMessage(struct sockaddr_in destinationAddress, char* message, uint8_t debugFlag) {
-  if (debugFlag) {
-    printf("Sending UDP message:\n");
-    printf("%s\n", message);
-  }
-  else {
-    printf("Sending UDP message...\n"); 
-  }
 
-  // Send message to destinationAddress over udpSocketDescriptor
-  int sendtoReturnValue = 0;
-  sendtoReturnValue = sendto(udpSocketDescriptor, message, strlen(message), 0, (struct sockaddr *)&destinationAddress, sizeof(destinationAddress));
-  if (sendtoReturnValue == -1) {
-    perror("UDP send error");
-    exit(1);
-  }
-  else {
-    printf("UDP message sent\n");
-  }
-}
 
 /*
   * Name:
@@ -250,6 +251,18 @@ void sendTcpAddress(struct sockaddr_in serverAddress, struct sockaddr_in tcpAddr
     printf("tcpAddressMessage: %s\n", tcpAddressMessage); 
   }
 
-  sendUdpMessage(serverAddress, tcpAddressMessage, debugFlag);    // Send the message to the server
+  sendUdpMessage(udpSocketDescriptor, serverAddress, tcpAddressMessage, debugFlag);    // Send the message to the server
+}
+
+// Function to receive messages from the server
+void receiveMessageFromServer() {
+    char buffer[USER_INPUT_BUFFER_LENGTH];
+    int bytesReceived = recvfrom(udpSocketDescriptor, buffer, USER_INPUT_BUFFER_LENGTH, 0, NULL, NULL);
+    if (bytesReceived > 0) {
+        buffer[bytesReceived] = '\0';  // Null-terminate the received string
+        printf("Message from server: %s\n", buffer);
+    } else {
+        perror("Error receiving message from server");
+    }
 }
 
