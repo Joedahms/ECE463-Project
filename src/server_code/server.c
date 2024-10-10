@@ -13,6 +13,8 @@
 #include "../common/network_node.h"
 #include "server.h"
 
+#define USER_INPUT_BUFFER_LENGTH 1024
+
 // Global flags
 uint8_t debugFlag = 0;  // Can add conditional statements with this flag to print out extra info
 
@@ -97,10 +99,6 @@ int main(int argc, char* argv[]) {
         }
         break;  // Break case 1
 
-      case 2:   // Plain text
-        broadcastMessage(listeningUDPSocketDescriptor, message, &clientUDPAddress);
-        break;  // Break case 2
-
       case 3:   // Put command
         // Check all connected clients to find which one sent the put command
         for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {     // Loop through all connected clients
@@ -142,7 +140,9 @@ int main(int argc, char* argv[]) {
       case 5:   // Invalid command
         break;  // Break case 5
 
-      default:
+      default:// Plain text
+        broadcastMessage(listeningUDPSocketDescriptor, message, &clientUDPAddress, udpStatus);
+        break;  // Break case 2
     }
 
     tcpStatus = checkTcpSocket(&clientTCPAddress, debugFlag); // Check for any new TCP connections
@@ -425,12 +425,19 @@ void printAllConnectedClients() {
 }
 
 // Broadcast a plain text message to all clients except the sender
-void broadcastMessage(int udpSocketDescriptor, char* message, struct sockaddr_in* sender_addr) {
-  for (int i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
-    if (connectedClients[i].socketTcpAddress.sin_addr.s_addr != sender_addr->sin_addr.s_addr ||
-      connectedClients[i].socketUdpAddress.sin_port != sender_addr->sin_port) {
-        sendto(udpSocketDescriptor, message, strlen(message), 0, (struct sockaddr*)&connectedClients[i], sizeof(connectedClients[i]));
-      }
+void broadcastMessage(int udpSocketDescriptor, char* message, struct sockaddr_in* sender_addr, int message_length) {
+    // Send exactly the number of bytes that were received
+    for (int i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
+        if (connectedClients[i].socketTcpAddress.sin_addr.s_addr != sender_addr->sin_addr.s_addr ||
+            connectedClients[i].socketUdpAddress.sin_port != sender_addr->sin_port) {
+            // Send only the number of bytes received (message_length)
+            sendto(udpSocketDescriptor, message, message_length, 0, 
+                   (struct sockaddr*)&connectedClients[i], sizeof(connectedClients[i]));
+        }
     }
-  printf("Broadcast message: %s\n", message);
+    // Null-terminate the message for proper logging
+    char log_message[message_length + 1];
+    strncpy(log_message, message, message_length);
+    log_message[message_length] = '\0';  // Null-terminate
+    printf("Broadcast message: %s\n", log_message);
 }

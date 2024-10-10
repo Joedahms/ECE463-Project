@@ -257,6 +257,7 @@ void sendTcpAddress(struct sockaddr_in serverAddress, struct sockaddr_in tcpAddr
 // Function to receive messages from the server
 void receiveMessageFromServer() {
     char buffer[USER_INPUT_BUFFER_LENGTH];
+    memset(buffer, 0, sizeof(buffer));  // Clear the buffer before receiving a new message
     int bytesReceived = recvfrom(udpSocketDescriptor, buffer, USER_INPUT_BUFFER_LENGTH, 0, NULL, NULL);
     if (bytesReceived > 0) {
         buffer[bytesReceived] = '\0';  // Null-terminate the received string
