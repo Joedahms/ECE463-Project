@@ -308,7 +308,7 @@ int checkUdpSocket(int listeningUDPSocketDescriptor, struct sockaddr_in* incomin
   }
   else if (checkStringForCommand(message) == 0) { // Message is plain text
     printf("Received plain text\n");
-    return 2;                                     // return 2
+    return bytesReceived;                                     // return 2
   }
   else if (strncmp(message, "%put ", 5) == 0) {   // Received put command
     printf("Received put command\n"); 

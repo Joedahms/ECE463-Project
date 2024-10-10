@@ -20,6 +20,6 @@ int findEmptyConnectedClient(uint8_t);
 
 void printAllConnectedClients();
 
-void broadcastMessage(int, char*, struct sockaddr_in*);
+void broadcastMessage(int udpSocketDescriptor, char* message, struct sockaddr_in* sender_addr, int message_length);
 
 #endif
