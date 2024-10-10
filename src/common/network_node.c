@@ -11,7 +11,16 @@
 
 #include "network_node.h"
 
-// Check how many command line arguments passed
+/*
+  * Name: checkCommandLineArguments
+  * Purpose: Check for command line arguments when starting up a network node.
+  * At the moment it is only used for setting the debug flag.
+  * Input: 
+  * - Number of command line arguments
+  * - The command line arguments
+  * - Debug flag
+  * Output: None
+*/
 void checkCommandLineArguments(int argc, char** argv, uint8_t* debugFlag) {
   char* programName = argv[0];
 	switch (argc) { // Check how many command line arguments are passed
@@ -91,7 +100,7 @@ int sendBytes(int socketDescriptor, const char* buffer, unsigned long int buffer
 }
 
 /*
- * Name: receiveMessage
+ * Name: receiveBytes
  * Purpose: This function is for receiving a set number of bytes into
  * a buffer
  * Input: 
@@ -120,6 +129,7 @@ int receiveBytes(int incomingSocketDescriptor, char* buffer, int bufferSize, uin
   * Name: sendUdpMessage
   * Purpose: Send a message via UDP
   * Input: 
+  * - Socket to send the message out on
   * - Socket address to send the message to
   * - The message to send
   * - Debug flag
@@ -164,12 +174,15 @@ int checkStringForCommand(const char* userInput) {
 }
 
 /*
-  * Name:
-  * Purpose:
+  * Name: printReceivedMessage
+  * Purpose: Print out a message along with its source
   * Input: 
-  * Output:
+  * - Who sent the message
+  * - How long the received message is
+  * - The received message
+  * - Debug flag
+  * Output: None
 */
-
 void printReceivedMessage(struct sockaddr_in sender, int bytesReceived, char* message, uint8_t debugFlag) {
   if (debugFlag) {
     unsigned long senderAddress = ntohl(sender.sin_addr.s_addr);
@@ -279,6 +292,7 @@ void fileNameFromCommand(char* userInput, char* fileName) {
   * return an integer depending on the type of message
   * Input:
   * - Address of the UDP port that is receiving messages.
+  * - If message is received, socket address data structure to store the senders address in
   * - Buffer to read message into
   * - Debug flag
   * Output: 
@@ -308,7 +322,7 @@ int checkUdpSocket(int listeningUDPSocketDescriptor, struct sockaddr_in* incomin
   }
   else if (checkStringForCommand(message) == 0) { // Message is plain text
     printf("Received plain text\n");
-    return bytesReceived;                                     // return 2
+    return 2;                                     // return 2
   }
   else if (strncmp(message, "%put ", 5) == 0) {   // Received put command
     printf("Received put command\n"); 

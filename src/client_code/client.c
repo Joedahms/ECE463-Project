@@ -1,4 +1,3 @@
-#define USER_INPUT_BUFFER_LENGTH 40
 #define FILE_NAME_SIZE 50
 
 #include <sys/types.h>
@@ -115,14 +114,9 @@ int main(int argc, char* argv[]) {
         }
       }
     }
-    //else {
-      //printf("No data within five seconds.\n");            
     if (FD_ISSET(udpSocketDescriptor, &read_fds)) {
       receiveMessageFromServer();
     }
-      //checkUdpSocket(udpSocketDescriptor, &address, message, debugFlag); 
-      //printf("Message");
-    //}
   }
 	return 0;
 } 
@@ -183,10 +177,10 @@ int checkForValidCommand(char* userInput) {
 
 
 /*
-  * Name:
-  * Purpose:
-  * Input: 
-  * Output:
+  * Name: putCommand
+  * Purpose: Send a file to the server
+  * Input: Name of the file to send
+  * Output: None
 */
 int putCommand(char* fileName) {
   char* fileContents = malloc(MAX_FILE_SIZE);
@@ -254,7 +248,14 @@ void sendTcpAddress(struct sockaddr_in serverAddress, struct sockaddr_in tcpAddr
   sendUdpMessage(udpSocketDescriptor, serverAddress, tcpAddressMessage, debugFlag);    // Send the message to the server
 }
 
-// Function to receive messages from the server
+/*
+  * Name: receiveMessageFromServer
+  * Purpose: Receive a UDP message from the server
+  * Input: 
+  * - None
+  * Output:
+  * - None
+*/
 void receiveMessageFromServer() {
     char buffer[USER_INPUT_BUFFER_LENGTH];
     memset(buffer, 0, sizeof(buffer));  // Clear the buffer before receiving a new message
