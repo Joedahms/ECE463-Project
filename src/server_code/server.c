@@ -13,8 +13,6 @@
 #include "../common/network_node.h"
 #include "server.h"
 
-#define USER_INPUT_BUFFER_LENGTH 1024
-
 // Global flags
 uint8_t debugFlag = 0;  // Can add conditional statements with this flag to print out extra info
 
@@ -38,10 +36,10 @@ int main(int argc, char* argv[]) {
   }
 
   // Initialize socket address stuctures
-  struct sockaddr_in serverAddress;     // Socket address that clients should connect to
-                                        // Same port is used for both UDP and TCP connections
-  struct sockaddr_in clientUDPAddress;  // Client's UDP info
-  struct sockaddr_in clientTCPAddress;  // Client's TCP info
+  struct sockaddr_in serverAddress;                   // Socket address that clients should connect to
+                                                      // Same port is used for both UDP and TCP connections
+  struct sockaddr_in clientUDPAddress;                // Client's UDP info
+  struct sockaddr_in clientTCPAddress;                // Client's TCP info
 
   // Set up server sockaddr_in data structure
   memset(&serverAddress, 0, sizeof(serverAddress));   // 0 out
@@ -51,10 +49,10 @@ int main(int argc, char* argv[]) {
   
   checkCommandLineArguments(argc, argv, &debugFlag);  // Check if user passed any arguments
 
-  setupUdpSocket(serverAddress);  // Setup the UDP socket
-  setupTcpSocket(serverAddress);  // Setup the TCP socket
+  setupUdpSocket(serverAddress);                      // Setup the UDP socket
+  setupTcpSocket(serverAddress);                      // Setup the TCP socket
   
-  char* message = malloc(INITIAL_MESSAGE_SIZE); // Space for incoming messages
+  char* message = malloc(INITIAL_MESSAGE_SIZE);       // Space for incoming messages
   
   // Whether or not data is available at the socket. If it is, what kind.
   int udpStatus;
@@ -64,17 +62,18 @@ int main(int argc, char* argv[]) {
   while (1) {
     udpStatus = checkUdpSocket(listeningUDPSocketDescriptor, &clientUDPAddress, message, debugFlag);  // Check the UDP socket
     switch (udpStatus) {
-      case 0:   // Nothing
+      case 0:                                         // Nothing
         break;
 
-      case 1:   // TCP/UDP relation info
-                // Message contains TCP address and port
-        message += 9;                           // Discard $address=
-        char* tcpAddressString = malloc(20);    // Space for address string
-        strncpy(tcpAddressString, message, 10); // Store the address
-        message += 16;                          // Discard the address and $port=
-        char* tcpPortString = malloc(20);       // Space for port string
-        strncpy(tcpPortString, message, 5);     // Store the port
+      case 1:                                         // TCP/UDP relation info
+                                                      // Message contains TCP address and port
+        message += 9;                                 // Discard $address=
+        char* tcpAddressString = malloc(20);          // Space for address string
+        strncpy(tcpAddressString, message, 10);       // Store the address
+        message += 16;                                // Discard the address and $port=
+        char* tcpPortString = malloc(20);             // Space for port string
+        strncpy(tcpPortString, message, 5);           // Store the port
+        memset(message, 0, USER_INPUT_BUFFER_LENGTH); // Clear message for next transmission
 
         // Convert the address and port to integers
         long tcpAddressInteger = strtol(tcpAddressString, NULL, 10);  // Address
@@ -89,60 +88,32 @@ int main(int argc, char* argv[]) {
 
           // Does what was sent match the current connected client?
           if (tcpAddressInteger == connectedClientAddress && tcpPortInteger == connectedClientPort) {
-            connectedClients[i].socketUdpAddress.sin_addr.s_addr = clientUDPAddress.sin_addr.s_addr;  // Set UDP address
-            connectedClients[i].socketUdpAddress.sin_port = clientUDPAddress.sin_port;                // Set UDP port
-            break;                                                                                    // Don't loop through the rest of the connected clients
+            connectedClients[i].socketUdpAddress.sin_addr.s_addr = clientUDPAddress.sin_addr.s_addr;          // Set UDP address
+            connectedClients[i].socketUdpAddress.sin_port = clientUDPAddress.sin_port;                        // Set UDP port
+            break;                                                                                            // Don't loop through the rest of the connected clients
           }
         }
         if (debugFlag) {
           printAllConnectedClients(); 
         }
         break;  // Break case 1
+      
+      case 2:   // Plain text message
+        broadcastMessage(listeningUDPSocketDescriptor, message, &clientUDPAddress);
+        break;
 
       case 3:   // Put command
-        // Check all connected clients to find which one sent the put command
-        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {     // Loop through all connected clients
-          unsigned long currentConnectedClientUdpAddress; // Connected client address
-          unsigned short currentConnectedClientUdpPort;   // Connected client port
-          currentConnectedClientUdpAddress = ntohl(connectedClients[i].socketUdpAddress.sin_addr.s_addr); // Set the address
-          currentConnectedClientUdpPort = ntohs(connectedClients[i].socketUdpAddress.sin_port);           // Set the port
-          if (currentConnectedClientUdpAddress != ntohl(clientUDPAddress.sin_addr.s_addr)) {  // If the address doesn't match
-            continue;                                                                         // Keep looking
-          }
-          if (currentConnectedClientUdpPort != ntohs(clientUDPAddress.sin_port)) {            // If address matches but the port doesn't
-            continue;                                                                         // Keep looking
-          }
-          // Address and port match
-          // Send command to child process associated with the client that sent the message
-          write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));  
-        }
-        break;  // Break case 3
+        sendCommandToChild(message, clientUDPAddress);
+        break;
 
       case 4:   // Get command
-        // Check all connected clients to find which one sent the get command
-        for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {     // Loop through all connected clients
-          unsigned long currentConnectedClientUdpAddress; // Connected client address
-          unsigned short currentConnectedClientUdpPort;   // Connected client port
-          currentConnectedClientUdpAddress = ntohl(connectedClients[i].socketUdpAddress.sin_addr.s_addr); // Set the address
-          currentConnectedClientUdpPort = ntohs(connectedClients[i].socketUdpAddress.sin_port);           // Set the port
-          if (currentConnectedClientUdpAddress != ntohl(clientUDPAddress.sin_addr.s_addr)) {  // If the address doesn't match
-            continue;                                                                         // Keep looking
-          }
-          if (currentConnectedClientUdpPort != ntohs(clientUDPAddress.sin_port)) {            // If address matches but the port doesn't
-            continue;                                                                         // Keep looking
-          }
-          // Address and port match
-          // Send command to child process associated with the client that sent the message
-          write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));  
-        }
-        break;  // Break case 4
+        sendCommandToChild(message, clientUDPAddress);
+        break;
 
       case 5:   // Invalid command
-        break;  // Break case 5
+        break;
 
-      default:// Plain text
-        broadcastMessage(listeningUDPSocketDescriptor, message, &clientUDPAddress, udpStatus);
-        break;  // Break case 2
+      default:  // Invalid message received
     }
 
     tcpStatus = checkTcpSocket(&clientTCPAddress, debugFlag); // Check for any new TCP connections
@@ -155,8 +126,6 @@ int main(int argc, char* argv[]) {
   } // while(1)
   return 0;
 } // main
-
-
 
 /*
 * Name: shutdownServer
@@ -244,8 +213,6 @@ void setupTcpSocket(struct sockaddr_in serverAddress) {
   }
 }
 
-
-
 /*
   * Name: checkTcpSocket
   * Purpose: Check if any new clients are trying to establish their TCP connection
@@ -275,7 +242,7 @@ int checkTcpSocket(struct sockaddr_in* incomingAddress, uint8_t debugFlag) {
   * Purpose: If there is a new client connecting to the server, store its data, and fork a new process
   * for handling its TCP connection. Add the client to the connectedClients array. Add its data to the 
   * connectedClients array. Setup pipes so the forked child process and the parent process can communicate
-  * back and forth. Fork a new process. 
+  * back and forth.
   * Input: 
   * - Socket address structure of the connecting client's TCP socket
   * - Debug flag
@@ -424,20 +391,57 @@ void printAllConnectedClients() {
   }
 }
 
-// Broadcast a plain text message to all clients except the sender
-void broadcastMessage(int udpSocketDescriptor, char* message, struct sockaddr_in* sender_addr, int message_length) {
+/*
+  * Name: broadcastMessage
+  * Purpose: Broadcast a plain text message to all clients except the sender
+  * Input: 
+  * - Udp socket to send the message out on
+  * - Message to broadcast
+  * - Who sent the message
+  * Output: None
+*/
+void broadcastMessage(int udpSocketDescriptor, char* message, struct sockaddr_in* sender_addr) {
     // Send exactly the number of bytes that were received
     for (int i = 0; i < MAX_CONNECTED_CLIENTS; i++) {
         if (connectedClients[i].socketTcpAddress.sin_addr.s_addr != sender_addr->sin_addr.s_addr ||
             connectedClients[i].socketUdpAddress.sin_port != sender_addr->sin_port) {
             // Send only the number of bytes received (message_length)
-            sendto(udpSocketDescriptor, message, message_length, 0, 
+            sendto(udpSocketDescriptor, message, strlen(message), 0, 
                    (struct sockaddr*)&connectedClients[i], sizeof(connectedClients[i]));
         }
     }
-    // Null-terminate the message for proper logging
-    char log_message[message_length + 1];
-    strncpy(log_message, message, message_length);
-    log_message[message_length] = '\0';  // Null-terminate
-    printf("Broadcast message: %s\n", log_message);
+    if (debugFlag) {
+      printf("Broadcast message: %s\n", message);
+    }
 }
+
+/*
+  * Name: sendCommandToChild
+  * Purpose: Send a command to a child process through a pipe
+  * Input: 
+  * - The message to be sent
+  * - The UDP address the command came from
+  * Output:
+  * - None
+*/
+void sendCommandToChild(char* message, struct sockaddr_in clientUDPAddress) {
+  // Check all connected clients to find which one sent the command
+  int i;
+  for (i = 0; i < MAX_CONNECTED_CLIENTS; i++) {                                                     // Loop through all connected clients
+    unsigned long currentConnectedClientUdpAddress;                                                 // Connected client UDP address
+    unsigned short currentConnectedClientUdpPort;                                                   // Connected client port
+    currentConnectedClientUdpAddress = ntohl(connectedClients[i].socketUdpAddress.sin_addr.s_addr); // Set the address
+    currentConnectedClientUdpPort = ntohs(connectedClients[i].socketUdpAddress.sin_port);           // Set the port
+    if (currentConnectedClientUdpAddress != ntohl(clientUDPAddress.sin_addr.s_addr)) {              // If the address doesn't match
+      continue;                                                                                     // Keep looking
+    }
+    if (currentConnectedClientUdpPort != ntohs(clientUDPAddress.sin_port)) {                        // If address matches but the port doesn't
+      continue;                                                                                     // Keep looking
+    }
+    // Address and port match
+    // Send command to child process associated with the client that sent the message
+    ssize_t bytesWrittenToChild;
+    bytesWrittenToChild = write(connectedClients[i].serverParentToChildPipe[1], message, (strlen(message) + 1));  
+  }
+} 
+
